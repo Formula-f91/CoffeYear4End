@@ -1,5 +1,6 @@
 import 'package:coffee/constants.dart';
-import 'package:coffee/cupping/add_cupping_session_screen.dart';
+import 'package:coffee/cupping/add_cupping_session_screen.dart'
+    hide secondaryColor2;
 import 'package:coffee/cupping/coffee_detail_screen.dart';
 import 'package:coffee/cupping/cupping_evaluation_results_screen.dart';
 import 'package:coffee/cupping/edit_cupping_screen.dart';
@@ -50,7 +51,7 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const AddCuppingSessionScreen(),
+                builder: (context) => const AddCoffeeInfoPage(),
               ),
             );
           },
