@@ -1,0 +1,209 @@
+import 'package:coffee/constants.dart';
+import 'package:coffee/cupping/Quickmode/combined_result_step3.dart';
+import 'package:coffee/cupping/model_provider.dart/cupping_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // 2. Import Package
+
+class CombinedResultStep2 extends StatefulWidget {
+  const CombinedResultStep2({super.key});
+
+  @override
+  State<CombinedResultStep2> createState() => CombinedResultStep2state();
+}
+
+class CombinedResultStep2state extends State<CombinedResultStep2> {
+  final Color themeColor = const Color(0xFFC67C4E);
+  final Color successGreen = const Color(0xFF75F94C);
+
+  @override
+  Widget build(BuildContext context) {
+    // 3. ใช้ Consumer เพื่อดึงข้อมูลจริงจาก Provider
+    return Consumer<CuppingProvider>(
+      builder: (context, provider, child) {
+        // ดึงรายการแก้วทั้งหมด
+        final allCups = provider.allCups;
+
+        return Scaffold(
+  backgroundColor: Colors.white,
+  appBar: AppBar(
+    backgroundColor: Colors.white,
+    elevation: 0,
+    centerTitle: true,
+    automaticallyImplyLeading: false,
+    title: const Text(
+      "Select Coffee",
+      style: TextStyle(
+        color: Colors.black,
+        fontWeight: FontWeight.bold,
+        fontSize: 18,
+      ),
+    ),
+  ),
+
+  // ✅ เพิ่ม bottomNavigationBar
+  bottomNavigationBar: SafeArea(
+    child: Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 1,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: secondaryColor2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: Text("Back", style: TextStyle(color: secondaryColor2, fontSize: 18)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 3,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const CombinedResultStep3()),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: secondaryColor2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text(
+                "Submit",
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+
+  body: Column(
+    children: [
+      Expanded(
+        child: ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          itemCount: allCups.length,
+          itemBuilder: (context, index) {
+            final cupData = allCups[index];
+            final cupNumber = index + 1;
+            final score = cupData.totalScore.toStringAsFixed(1);
+            return _buildCoffeeItem(context, provider, cupNumber, score);
+          },
+        ),
+      ),
+      // ✅ ลบ _buildFooterButtons(context) ออกแล้ว
+    ],
+  ),
+);
+      },
+    );
+  }
+
+  // --- Widget: รายการกาแฟแต่ละแถว ---
+  Widget _buildCoffeeItem(
+    BuildContext context,
+    CuppingProvider provider,
+    int cupNumber,
+    String score,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: secondaryColor2, width: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // ไอคอนวงกลมติ๊กถูก (Success)
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: successGreen.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.check_circle, color: successGreen, size: 24),
+          ),
+          const SizedBox(width: 12),
+
+          // ข้อมูลกาแฟ (แสดงข้อมูลจริง)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Cup #$cupNumber", // ชื่อแก้ว
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                Row(
+                  children: [
+                    Text(
+                      "Score: $score", // แสดงคะแนนรวม
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Success",
+                      style: TextStyle(
+                        color: successGreen.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // ปุ่ม Edit
+          OutlinedButton(
+            onPressed: () {
+              // 1. สั่ง Provider ให้เลือกแก้วนี้
+              provider.selectCup(cupNumber);
+
+              // 2. เด้งกลับไปหน้าแรก (Step 1) เพื่อแก้ไข
+              // ใช้ pushAndRemoveUntil หรือ popUntil เพื่อเคลียร์ stack ก็ได้
+              // แต่วิธีง่ายสุดคือ Push หน้า Step 1 ทับลงไปใหม่ หรือ Pop กลับไปหน้าเดิม
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => const CombinedAssessmentScreen(),
+              //   ),
+              // );
+            },
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: secondaryColor2,
+              ), // ใช้สีจาก constants.dart
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            child: Text(
+              "Edit",
+              style: TextStyle(color: secondaryColor2, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+}

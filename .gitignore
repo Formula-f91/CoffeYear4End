@@ -1,0 +1,17 @@
+# ข้ามไฟล์ build และ tool ของ Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# ข้ามไฟล์ของ IDE
+.vscode/
+.idea/
+*.iml
+
+# ข้ามไฟล์ Android/iOS ที่สร้างเอง
+android/local.properties
+ios/.generated/
