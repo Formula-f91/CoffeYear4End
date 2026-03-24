@@ -355,12 +355,12 @@ class _CoffeeEventListOnlyScreenState extends State<CoffeeEventListOnlyScreen> {
                       const Spacer(),
                       ElevatedButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const EditCuppingScreen(),
-                            ),
-                          );
+                          // Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(
+                          //     builder: (context) => const EditCuppingScreen(),
+                          //   ),
+                          // );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,

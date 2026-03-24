@@ -2,11 +2,15 @@ import 'package:coffee/constants.dart';
 import 'package:coffee/cupping/Affective/affective_step1.dart';
 import 'package:coffee/cupping/Descriptive/DescriptiveStep1.dart';
 import 'package:coffee/cupping/Quickmode/combined_result_step1.dart';
+import 'package:coffee/model/session_model.dart';
 import 'package:flutter/material.dart';
 import 'package:coffee/cupping/Combinedform/combined_assessment_screen.dart';
 
 class SelectFormScreen extends StatefulWidget {
-  const SelectFormScreen({super.key});
+  // รับ session มาด้วยเพื่อส่งต่อให้แต่ละ form
+  final SessionModel? session;
+
+  const SelectFormScreen({super.key, this.session});
 
   @override
   State<SelectFormScreen> createState() => _SelectFormScreenState();
@@ -38,15 +42,15 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
                     vertical: 16,
                     horizontal: 24,
                   ),
-                  side: const BorderSide(color: Color(0xFF2855C6), width: 1),
+                  side: BorderSide(color: secondaryColor2, width: 1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(0),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   "Back",
                   style: TextStyle(
-                    color: Color(0xFF2855C6),
+                    color: secondaryColor2,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -57,7 +61,6 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     if (_selectedFormIndex == 0) {
-                      // SCA CVA Combined
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -65,15 +68,23 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
                         ),
                       );
                     } else if (_selectedFormIndex == 1) {
-                      // CVA Affective
+                      // Affective — ต้องมี session
+                      if (widget.session == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Session data not found')),
+                        );
+                        return;
+                      }
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const AffectiveStep1(),
+                          builder: (context) => AffectiveStep1(
+                            session: widget.session!,
+                          ),
                         ),
                       );
                     } else if (_selectedFormIndex == 2) {
-                      // CVA Combined
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -82,7 +93,6 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
                         ),
                       );
                     } else if (_selectedFormIndex == 3) {
-                      // Quick mode
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -161,7 +171,7 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? const Color(0xFF2855C6) : Colors.grey.shade300,
+            color: isSelected ? secondaryColor2 : Colors.grey.shade300,
             width: 1.5,
           ),
         ),
@@ -173,9 +183,7 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF2855C6)
-                      : Colors.grey.shade400,
+                  color: isSelected ? secondaryColor : Colors.grey.shade400,
                   width: isSelected ? 6 : 1.5,
                 ),
                 color: Colors.white,
@@ -187,7 +195,8 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.black87,
-                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                fontWeight:
+                    isSelected ? FontWeight.w500 : FontWeight.normal,
               ),
             ),
           ],

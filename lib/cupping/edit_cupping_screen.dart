@@ -1,32 +1,89 @@
+import 'dart:io';
 import 'package:coffee/constants.dart';
+import 'package:coffee/cupping/createcupping/sampleinfo.dart';
+import 'package:coffee/model/session_model.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
-const Color buttonColor = Color(0xFFC67C4E);
 const Color deleteColor = Color(0xFFFF5252);
 
 class EditCuppingScreen extends StatefulWidget {
-  const EditCuppingScreen({super.key});
+  final SessionModel session; // รับ session เดิมมาแก้ไข
+
+  const EditCuppingScreen({super.key, required this.session});
 
   @override
   State<EditCuppingScreen> createState() => _EditCuppingScreenState();
 }
 
 class _EditCuppingScreenState extends State<EditCuppingScreen> {
-  final TextEditingController _cuppingNameController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+  late final TextEditingController _cuppingNameController;
+  late final TextEditingController _descriptionController;
 
-  String startDate = "31/3/2026";
-  String startTime = "00:00";
-  String endDate = "31/3/2026";
-  String endTime = "00:00";
+  File? _pickedImageFile;
 
+  // Samples list — เริ่มจากข้อมูลเดิม
+  late List<SampleModel> _samples;
+
+  final List<Map<String, dynamic>> _mockModes = [
+    {'id': 1, 'name': 'Descriptive'},
+    {'id': 2, 'name': 'Affective'},
+    {'id': 3, 'name': 'Combined'},
+    {'id': 4, 'name': 'Quick Mode'},
+    {'id': 5, 'name': 'Quick Mode 2'},
+  ];
+
+  int? _selectedCuppingModeId;
+
+  @override
+  void initState() {
+    super.initState();
+    // โหลดข้อมูลเดิมจาก session
+    _cuppingNameController =
+        TextEditingController(text: widget.session.cuppingName);
+    _descriptionController =
+        TextEditingController(text: widget.session.description);
+    _samples = List.from(widget.session.samples);
+
+    // หา id ของ mode เดิม
+    final existingMode = _mockModes.firstWhere(
+      (m) => m['name'] == widget.session.cuppingMode,
+      orElse: () => _mockModes.first,
+    );
+    _selectedCuppingModeId = existingMode['id'] as int;
+
+    // โหลดรูปเดิม (ถ้ามี)
+    if (widget.session.imagePath != null) {
+      _pickedImageFile = File(widget.session.imagePath!);
+    }
+  }
+
+  @override
+  void dispose() {
+    _cuppingNameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  // ── Pick image ─────────────────────────────────────────────────────────────
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() => _pickedImageFile = File(picked.path));
+    }
+  }
+
+  // ── Delete dialog ──────────────────────────────────────────────────────────
   void _showDeleteDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           backgroundColor: Colors.white,
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -37,7 +94,8 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     "Delete",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -61,7 +119,7 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "Are you sure you want to delete",
+                  "Are you sure you want to delete this session?",
                   style: TextStyle(fontSize: 16, color: Colors.black87),
                   textAlign: TextAlign.center,
                 ),
@@ -73,26 +131,33 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
                         onPressed: () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: deleteColor),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        child: const Text("Cancel", style: TextStyle(color: deleteColor, fontSize: 16)),
+                        child: const Text("Cancel",
+                            style:
+                                TextStyle(color: deleteColor, fontSize: 16)),
                       ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.pop(context);
+                          Navigator.pop(context); // ปิด dialog
+                          // ส่ง null กลับ = ลบ session นี้
+                          Navigator.pop(context, 'deleted');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: deleteColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           elevation: 0,
                         ),
-                        child: const Text("Confirm", style: TextStyle(color: Colors.white, fontSize: 16)),
+                        child: const Text("Confirm",
+                            style: TextStyle(
+                                color: Colors.white, fontSize: 16)),
                       ),
                     ),
                   ],
@@ -106,6 +171,34 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
     );
   }
 
+  // ── Confirm — build updated SessionModel and pop ───────────────────────────
+  void _onConfirm() {
+    if (_cuppingNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter Cupping Name')),
+      );
+      return;
+    }
+
+    final modeName = _mockModes.firstWhere(
+      (m) => m['id'] == _selectedCuppingModeId,
+      orElse: () => {'name': 'N/A'},
+    )['name'] as String;
+
+    final updated = SessionModel(
+      cuppingName: _cuppingNameController.text.trim(),
+      description: _descriptionController.text.trim(),
+      cuppingMode: modeName,
+      imagePath:
+          _pickedImageFile?.path ?? widget.session.imagePath,
+      samples: List.unmodifiable(_samples),
+      createdAt: widget.session.createdAt, // คงวันที่สร้างเดิมไว้
+    );
+
+    Navigator.pop(context, updated); // ส่ง SessionModel ที่แก้แล้วกลับ
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,23 +208,27 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
         scrolledUnderElevation: 0,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+          icon: const Icon(Icons.arrow_back_ios,
+              color: Colors.black, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
         title: const Text(
           "Edit Cupping",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+              fontSize: 18),
         ),
       ),
-      // ย้ายปุ่มมาไว้ที่ bottomNavigationBar
       bottomNavigationBar: Container(
         color: Colors.white,
         child: SafeArea(
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey, width: 1)),
+              border:
+                  Border(top: BorderSide(color: Colors.grey, width: 1)),
             ),
             child: Row(
               children: [
@@ -142,24 +239,33 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(0)),
                     ),
-                    child: const Text("Delete", style: TextStyle(color: Colors.red, fontSize: 16)),
+                    child: const Text("Delete",
+                        style:
+                            TextStyle(color: Colors.red, fontSize: 16)),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: _onConfirm,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       backgroundColor: secondaryColor2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(0)),
                       elevation: 0,
                     ),
-                    child: const Text("Confirm",
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      "Confirm",
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
               ],
@@ -172,179 +278,218 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Cupping Name
+            // ── Cupping Name ────────────────────────────────────────────
             _buildLabel("Cupping Name"),
             const SizedBox(height: 8),
-            _buildTextField(_cuppingNameController, hint: ""),
-
+            _buildTextField(_cuppingNameController),
             const SizedBox(height: 20),
 
-            // 2. Image Section
+            // ── Image ────────────────────────────────────────────────────
             _buildLabel("Image"),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.add_circle_outline, color: Colors.grey.shade600),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: List.generate(4, (index) {
-                        return GestureDetector(
-                          onTap: _showImageOptionsSheet,
-                          child: Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              image: const DecorationImage(
-                                image: AssetImage('assets/Image.png'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                )
-              ],
-            ),
-
+            _buildImageSection(),
             const SizedBox(height: 20),
 
-            // 3. Cupping Event Header
-            const Text("Cupping Event", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 12),
-
-            // 4. Location
-            _buildLabel("Location"),
+            // ── Cupping Mode ─────────────────────────────────────────────
+            _buildLabel("Choose cupping mode"),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(0),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  TextField(
-                    controller: _locationController,
-                    maxLines: 3,
-                    minLines: 3,
-                    decoration: const InputDecoration.collapsed(hintText: ""),
-                  ),
-                  const SizedBox(height: 8),
-                  Text("51/200", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                ],
-              ),
-            ),
-
+            _buildDropdown(),
             const SizedBox(height: 20),
 
-            // 5. Start Date & Time
-            _buildLabel("Start Date & Time"),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _buildDateTimePicker(startDate, 'assets/icon/calendar.png')),
-                const SizedBox(width: 12),
-                Expanded(child: _buildDateTimePicker(startTime, 'assets/icon/time.png')),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // 6. End Date & Time
-            _buildLabel("End Date & Time"),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: _buildDateTimePicker(endDate, 'assets/icon/calendar.png')),
-                const SizedBox(width: 12),
-                Expanded(child: _buildDateTimePicker(endTime, 'assets/icon/time.png')),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // 7. Description
+            // ── Description ──────────────────────────────────────────────
             _buildLabel("Cupping Activity Description"),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(0),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  TextField(
-                    controller: _descriptionController,
-                    maxLines: 3,
-                    minLines: 3,
-                    decoration: const InputDecoration.collapsed(hintText: ""),
-                  ),
-                  const SizedBox(height: 8),
-                  Text("51/200", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                ],
-              ),
-            ),
-
+            _buildTextArea(_descriptionController),
             const SizedBox(height: 20),
 
-            // 8. Coffee Sample List
+            // ── Coffee Samples ────────────────────────────────────────────
             _buildLabel("Coffee Sample"),
             const SizedBox(height: 8),
-            _buildCoffeeSampleItem("Coffee Name"),
-            const SizedBox(height: 12),
 
-            // Add Button
-            Container(
-              width: 45,
-              height: 45,
-              decoration: BoxDecoration(
-                color: primaryColor2,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: () {},
+            // แสดงรายการ sample ปัจจุบัน
+            ..._samples.asMap().entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildCoffeeSampleItem(
+                    entry.key, entry.value),
               ),
             ),
 
-            const SizedBox(height: 20),
+            // ── Add / Edit samples button ─────────────────────────────────
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () async {
+                // เปิด SampleInfoPage พร้อมข้อมูลเดิม
+                final result =
+                    await Navigator.push<List<SampleModel>>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SampleInfoPage(
+                      initialSamples: _samples,
+                    ),
+                  ),
+                );
+                if (result != null) {
+                  setState(() => _samples = result);
+                }
+              },
+              child: Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: secondaryColor2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
+            ),
+
+            if (_samples.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  "${_samples.length} sample${_samples.length != 1 ? 's' : ''}",
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.grey[500]),
+                ),
+              ),
+
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+  // ── Image section ──────────────────────────────────────────────────────────
+  Widget _buildImageSection() {
+    return Row(
+      children: [
+        // ปุ่มเพิ่มรูปใหม่
+        GestureDetector(
+          onTap: _pickImage,
+          child: Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade400),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.add_circle_outline,
+                color: Colors.grey.shade600),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // รูปปัจจุบัน
+        if (_pickedImageFile != null)
+          GestureDetector(
+            onTap: () => _showImageOptionsSheet(),
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border:
+                    Border.all(color: secondaryColor2, width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: Image.file(
+                  _pickedImageFile!,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, {String hint = ""}) {
+  // ── Sample item row ────────────────────────────────────────────────────────
+  Widget _buildCoffeeSampleItem(int index, SampleModel sample) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "${index + 1}.  ${sample.name}",
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14),
+                      ),
+                      Text(
+                        "${sample.type}  •  ${sample.roastLevel}",
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios,
+                    size: 14, color: Colors.grey),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // ปุ่มลบ sample
+        GestureDetector(
+          onTap: () => setState(() => _samples.removeAt(index)),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(
+              color: deleteColor,
+            ),
+            child: Center(
+              child: Image.asset(
+                'assets/icon/fi_trash.png',
+                width: 22,
+                height: 22,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.delete_outline,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Reusable widgets ───────────────────────────────────────────────────────
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          color: Colors.black87),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
-        hintText: hint,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(0),
           borderSide: BorderSide(color: Colors.grey.shade400),
@@ -355,66 +500,71 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(0),
-          borderSide: BorderSide(color: primaryColor2, width: 2),
+          borderSide: BorderSide(color: secondaryColor2, width: 2),
         ),
       ),
     );
   }
 
-  Widget _buildDateTimePicker(String value, String iconAssetPath) {
+  Widget _buildTextArea(TextEditingController controller) {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+          ),
+          child: TextField(
+            controller: controller,
+            maxLines: 4,
+            maxLength: 200,
+            onChanged: (_) => setState(() {}),
+            decoration: const InputDecoration(
+              counterText: "",
+              border: InputBorder.none,
+              contentPadding:
+                  EdgeInsets.fromLTRB(12, 12, 12, 28),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 8,
+          right: 12,
+          child: Text(
+            "${controller.text.length}/200",
+            style: TextStyle(
+                color: Colors.grey.shade400, fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDropdown() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade400),
-        borderRadius: BorderRadius.circular(0),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(value, style: TextStyle(color: Colors.grey.shade600)),
-          Image.asset(iconAssetPath, width: 20, height: 20, fit: BoxFit.contain),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCoffeeSampleItem(String name) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(0),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-              ],
-            ),
-          ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: _selectedCuppingModeId,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down,
+              color: Colors.grey),
+          items: _mockModes
+              .map(
+                (item) => DropdownMenuItem<int>(
+                  value: item['id'] as int,
+                  child: Text(item['name'] as String,
+                      style: const TextStyle(fontSize: 13)),
+                ),
+              )
+              .toList(),
+          onChanged: (val) =>
+              setState(() => _selectedCuppingModeId = val),
         ),
-        const SizedBox(width: 12),
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFF5252),
-            borderRadius: BorderRadius.circular(0),
-          ),
-          child: Center(
-            child: Image.asset(
-              'assets/icon/fi_trash.png',
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-            ),
-          ),
-        )
-      ],
+      ),
     );
   }
 
@@ -426,23 +576,27 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(20)),
           ),
           padding: const EdgeInsets.only(bottom: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                padding:
+                    const EdgeInsets.fromLTRB(20, 16, 12, 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      "xxxxxxxxxxxx",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
-                    ),
+                    const Text("Image options",
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500)),
                     IconButton(
-                      icon: const Icon(Icons.close, size: 28, color: Colors.black),
+                      icon: const Icon(Icons.close,
+                          size: 28, color: Colors.black),
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -450,22 +604,25 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
               ),
               const Divider(height: 1),
               _buildSheetItem(
-                imagePath: 'assets/icon/Eye.png',
+                icon: Icons.visibility_outlined,
                 label: "View image",
                 onTap: () => Navigator.pop(context),
               ),
               _buildSheetItem(
-                imagePath: 'assets/icon/Available Updates.png',
+                icon: Icons.upload_outlined,
                 label: "Change image",
-                onTap: () => Navigator.pop(context),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage();
+                },
               ),
               _buildSheetItem(
-                imagePath: 'assets/icon/Trash.png',
+                icon: Icons.delete_outline,
                 label: "Delete",
                 labelColor: Colors.red,
                 onTap: () {
                   Navigator.pop(context);
-                  _showDeleteDialog();
+                  setState(() => _pickedImageFile = null);
                 },
               ),
             ],
@@ -476,19 +633,23 @@ class _EditCuppingScreenState extends State<EditCuppingScreen> {
   }
 
   Widget _buildSheetItem({
-    required String imagePath,
+    required IconData icon,
     required String label,
     required VoidCallback onTap,
     Color labelColor = Colors.black,
   }) {
     return ListTile(
-      leading: Image.asset(imagePath, width: 24, height: 24, fit: BoxFit.contain),
+      leading: Icon(icon, size: 24, color: labelColor),
       title: Text(
         label,
-        style: TextStyle(color: labelColor, fontSize: 16, fontWeight: FontWeight.w500),
+        style: TextStyle(
+            color: labelColor,
+            fontSize: 16,
+            fontWeight: FontWeight.w500),
       ),
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
     );
   }
 }

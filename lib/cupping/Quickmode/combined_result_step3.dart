@@ -1,636 +1,671 @@
+// lib/cupping/Quickmode/combined_result_step1.dart
+//
+// Quick Mode — 2 step input + Result chart รวมในไฟล์เดียว
+// ใช้ Inner Navigator pattern เหมือน Affective/Descriptive/Combined
+//
+import 'dart:math';
 import 'package:coffee/constants.dart';
-import 'package:coffee/cupping/model_provider.dart/cupping_provider.dart';
-import 'package:coffee/distributor_firstPage.dart';
-import 'package:coffee/farm/farm_first_page.dart';
-import 'package:coffee/firstPage.dart';
-import 'package:coffee/roaster_firstPage.dart';
+import 'package:coffee/cupping/Quickmode/quick_mode_provider.dart';
+import 'package:coffee/cupping/formdescriptor/defect_descriptor_sheet.dart';
+import 'package:coffee/cupping/formdescriptor/flavor_descriptor_sheet.dart';
+import 'package:coffee/model/session_model.dart';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 
-// Import สำหรับการทำ PDF
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-
-class CombinedResultStep3 extends StatefulWidget {
-  const CombinedResultStep3({super.key});
+// ── Entry point ───────────────────────────────────────────────────────────────
+class CombinedResult extends StatelessWidget {
+  final SessionModel? session;
+  const CombinedResult({super.key, this.session});
 
   @override
-  State<CombinedResultStep3> createState() => _CombinedResultStateStep3();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) {
+        final p = QuickModeProvider();
+        if (session != null) p.init(session!);
+        return p;
+      },
+      child: const _QuickNavigator(),
+    );
+  }
 }
 
-class _CombinedResultStateStep3 extends State<CombinedResultStep3> {
-  final Color activeOrange = const Color(0xFFFF8D28);
+class _QuickNavigator extends StatelessWidget {
+  const _QuickNavigator();
+  @override
+  Widget build(BuildContext context) => Navigator(
+    onGenerateRoute: (s) => MaterialPageRoute(
+      settings: s, builder: (_) => const _Step1()),
+  );
+}
 
-  // --- ฟังก์ชันหลักสำหรับ Export PDF ---
-  Future<void> _exportToPdf(CuppingProvider provider) async {
-    final pdf = pw.Document();
+// ── Shared helpers ─────────────────────────────────────────────────────────────
 
-    // ดึงข้อมูลรายการ Cup ทั้งหมดจาก Provider (สมมติว่าวนลูปตามจำนวนถ้วยที่มี)
-    // ในตัวอย่างนี้จะวาด 3 รายการต่อหน้าตามภาพที่คุณส่งมา
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(20),
-        build: (pw.Context context) {
-          return [
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 20),
-              child: pw.Text(
-                "Individual Report",
-                style: pw.TextStyle(
-                  fontSize: 22,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            ),
-            // วาด Card แต่ละใบ (วนลูปข้อมูลจาก provider ได้ตรงนี้)
-            _buildPdfCupCard(1, "66", [
-              "Floral (1)",
-              "Fruity (1)",
-              "Citrus Fruit (1)",
-            ]),
-            _buildPdfCupCard(2, "66", [
-              "Floral (1)",
-              "Fruity (1)",
-              "Citrus Fruit (1)",
-            ]),
-            _buildPdfCupCard(3, "66", [
-              "Floral (1)",
-              "Fruity (1)",
-              "Citrus Fruit (1)",
-            ]),
-          ];
-        },
-      ),
-    );
+AppBar _qAppBar(String title, {VoidCallback? onBack}) => AppBar(
+  backgroundColor: Colors.white, elevation: 0, scrolledUnderElevation: 0,
+  centerTitle: true, automaticallyImplyLeading: false,
+  leading: onBack != null
+      ? IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20), onPressed: onBack)
+      : null,
+  title: Text(title, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)),
+  bottom: PreferredSize(preferredSize: const Size.fromHeight(1),
+      child: Container(color: Colors.grey.shade300, height: 1)),
+);
 
-    // แสดงหน้า Preview สำหรับพิมพ์หรือบันทึก
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-    );
-  }
+Widget _qHeader(QuickModeProvider p) {
+  final session = p.session;
+  final now = DateTime.now();
+  final date = "${now.day.toString().padLeft(2,'0')}.${now.month.toString().padLeft(2,'0')}.${now.year}";
+  return Container(
+    padding: const EdgeInsets.all(16),
+    color: secondaryColor2,
+    child: Row(children: [
+      const CircleAvatar(radius: 25, backgroundColor: Colors.white,
+          backgroundImage: AssetImage('assets/photo/coffepro.png')),
+      const SizedBox(width: 12),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(session?.cuppingName ?? "Quick Mode",
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            overflow: TextOverflow.ellipsis, maxLines: 1),
+        Text("Date : $date  •  ${p.totalSamples} samples",
+            style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      ])),
+    ]),
+  );
+}
 
-  // Widget สำหรับวาด Card ในหน้า PDF
-  pw.Widget _buildPdfCupCard(int num, String score, List<String> tags) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 15),
-      padding: const pw.EdgeInsets.all(15),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(15)),
-      ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          // ส่วนข้อมูลตัวเลข (ซ้าย)
-          pw.Expanded(
-            flex: 2,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  "$num(TS-01219595)",
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                ),
-                pw.Text(
-                  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-                  style: const pw.TextStyle(
-                    fontSize: 8,
-                    color: PdfColors.grey500,
-                  ),
-                ),
-                pw.SizedBox(height: 15),
-                pw.Center(
-                  child: pw.Column(
-                    children: [
-                      pw.Text(
-                        "Total Score",
-                        style: const pw.TextStyle(fontSize: 10),
-                      ),
-                      pw.Text(
-                        score,
-                        style: pw.TextStyle(
-                          fontSize: 24,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromInt(0xFF4A69FF),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                pw.SizedBox(height: 15),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.center,
-                  children: [
-                    _pdfTag(tags[0], PdfColors.pink),
-                    pw.SizedBox(width: 4),
-                    _pdfTag(tags[1], PdfColors.red),
-                    pw.SizedBox(width: 4),
-                    _pdfTag(tags[2], PdfColors.orange),
-                  ],
-                ),
-                pw.SizedBox(height: 15),
-                pw.Text(
-                  "Note : ",
-                  style: pw.TextStyle(
-                    fontWeight: pw.FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // ส่วนกราฟจำลอง (ขวา)
-          pw.Expanded(
-            flex: 1,
-            child: pw.Container(
-              height: 120,
-              alignment: pw.Alignment.center,
-              child: pw.Stack(
-                alignment: pw.Alignment.center,
-                children: [
-                  _pdfCircleGraph(90, PdfColors.orange400, "Citrus Fruit"),
-                  _pdfCircleGraph(70, PdfColors.red400, "Fruity"),
-                  _pdfCircleGraph(50, PdfColors.pink400, "Floral"),
-                ],
-              ),
-            ),
-          ),
+Widget _qSampleCard(QuickModeProvider p, {bool showScore = false}) {
+  final sample = p.currentSample;
+  final d = p.currentData;
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(color: Colors.white,
+        border: Border.all(color: const Color(0xFFA2A2A2))),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(sample?.name ?? "Coffee Name",
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+          Text(sample?.roastLevel ?? "",
+              style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        ])),
+        Container(height: 40, width: 1, color: primaryColor2, margin: const EdgeInsets.symmetric(horizontal: 12)),
+        Column(children: [
+          const Text("Total Cup", style: TextStyle(fontSize: 13)),
+          Text("${p.totalSamples}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        ]),
+        if (showScore) ...[
+          Container(height: 40, width: 1, color: primaryColor2, margin: const EdgeInsets.symmetric(horizontal: 12)),
+          Column(children: [
+            const Text("Score", style: TextStyle(fontSize: 13)),
+            Text(d.score.toStringAsFixed(0),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: secondaryColor2)),
+          ]),
         ],
-      ),
-    );
+      ]),
+      const SizedBox(height: 16),
+      const Text("Select coffee", style: TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
+      const SizedBox(height: 10),
+      Wrap(spacing: 8, runSpacing: 8,
+        children: List.generate(p.totalSamples, (i) {
+          final sel = p.currentSampleIndex == i;
+          return GestureDetector(
+            onTap: () => p.selectSample(i),
+            child: Container(width: 46, height: 46,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: sel ? secondaryColor2 : Colors.white,
+                  border: Border.all(color: sel ? secondaryColor2 : Colors.grey.shade300)),
+              child: Center(child: Text("${i+1}", style: TextStyle(
+                  color: sel ? Colors.white : Colors.black, fontWeight: FontWeight.bold)))));
+        })),
+    ]),
+  );
+}
+
+Widget _qBottomNav(BuildContext ctx, {required VoidCallback onBack, required VoidCallback onNext, String nextLabel = "Next"}) =>
+    SafeArea(child: Container(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      decoration: BoxDecoration(color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade300, width: 1))),
+      child: Row(children: [
+        Expanded(child: OutlinedButton(onPressed: onBack,
+          style: OutlinedButton.styleFrom(side: BorderSide(color: secondaryColor2),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0))),
+          child: Text("Back", style: TextStyle(color: secondaryColor2, fontSize: 18)))),
+        const SizedBox(width: 16),
+        Expanded(flex: 2, child: ElevatedButton(onPressed: onNext,
+          style: ElevatedButton.styleFrom(backgroundColor: secondaryColor2,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0))),
+          child: Text(nextLabel, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)))),
+      ]),
+    ));
+
+Widget _qDescriptorBox(List<String> items, void Function(String) onRemove,
+    {bool isDefect = false}) {
+  return Container(
+    width: double.infinity, constraints: const BoxConstraints(minHeight: 120),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8)),
+    child: items.isEmpty
+        ? const Center(child: Text('No descriptors added yet.\nTap Add descriptors.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.black54, fontSize: 13)))
+        : Wrap(spacing: 8, runSpacing: 8, children: items.map((d) {
+            Color color;
+            String emoji = '•';
+            String? image;
+            if (isDefect) {
+              final s = DefectDescriptorSheet.resolveStyle(d);
+              color = s['color'] as Color;
+            } else {
+              final s = FlavorDescriptorSheet.resolveStyle(d);
+              color = s['color'] as Color;
+              emoji = (s['emoji'] as String?) ?? '•';
+              image = s['image'] as String?;
+            }
+            return GestureDetector(
+              onTap: () => onRemove(d),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                    color: isDefect ? color.withOpacity(0.12) : color.withOpacity(0.7),
+                    border: Border.all(color: color.withOpacity(isDefect ? 0.5 : 0.6)),
+                    borderRadius: BorderRadius.circular(15)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (image != null) ...[
+                    Image.asset(image, width: 16, height: 16, fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => Text(emoji, style: const TextStyle(fontSize: 14))),
+                    const SizedBox(width: 5),
+                  ] else if (!isDefect) ...[
+                    Text(emoji, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(width: 5),
+                  ],
+                  Text(d, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500,
+                      color: isDefect ? Colors.black : Colors.white)),
+                  const SizedBox(width: 4),
+                  Icon(Icons.cancel, size: 14, color: isDefect ? color : Colors.black),
+                ]),
+              ));
+          }).toList()),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STEP 1 — Flavor + Defects + Score + Re-roast + Note
+// ─────────────────────────────────────────────────────────────────────────────
+class _Step1 extends StatefulWidget {
+  const _Step1();
+  @override State<_Step1> createState() => _Step1State();
+}
+class _Step1State extends State<_Step1> {
+  final _note = TextEditingController();
+  @override void dispose() { _note.dispose(); super.dispose(); }
+
+  void _showFlavorSheet(QuickModeProvider p) {
+    showModalBottomSheet(context: context, isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => FlavorDescriptorSheet(
+        initialSelected: List.from(p.currentData.flavorDescriptors),
+        onApply: (s) {
+          final merged = {...p.currentData.flavorDescriptors, ...s}.toList();
+          p.setFlavorDescriptors(merged);
+          Navigator.pop(context);
+        }));
   }
 
-  pw.Widget _pdfCircleGraph(double size, PdfColor color, String label) {
-    return pw.Container(
-      width: size,
-      height: size,
-      decoration: pw.BoxDecoration(
-        shape: pw.BoxShape.circle,
-        border: pw.Border.all(color: color, width: 8),
-      ),
-    );
-  }
-
-  pw.Widget _pdfTag(String text, PdfColor color) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: pw.BoxDecoration(
-        color: color,
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-      ),
-      child: pw.Text(
-        text,
-        style: const pw.TextStyle(color: PdfColors.white, fontSize: 7),
-      ),
-    );
+  void _showDefectSheet(QuickModeProvider p) {
+    showModalBottomSheet(context: context, isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => DefectDescriptorSheet(
+        initialSelected: List.from(p.currentData.defectDescriptors),
+        onApply: (s) {
+          final merged = {...p.currentData.defectDescriptors, ...s}.toList();
+          p.setDefectDescriptors(merged);
+          Navigator.pop(context);
+        }));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CuppingProvider>(
-      builder: (context, provider, child) {
-        final cupData = provider.currentCupData;
-        final currentCupNum = provider.currentCupNumber;
+    return Consumer<QuickModeProvider>(builder: (_, p, __) {
+      final d = p.currentData;
+      if (_note.text != d.note) _note.text = d.note;
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: _qAppBar("Quick Mode",
+            onBack: () => Navigator.of(context, rootNavigator: true).pop()),
+        bottomNavigationBar: _qBottomNav(context,
+          onBack: () => Navigator.of(context, rootNavigator: true).pop(),
+          onNext: () {
+            p.setNote(_note.text);
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const _Step2()));
+          }),
+        body: SingleChildScrollView(padding: const EdgeInsets.all(20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _qHeader(p), const SizedBox(height: 22),
+            _qSampleCard(p), const SizedBox(height: 20),
 
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            centerTitle: true,
-            automaticallyImplyLeading: false, // ✅ ซ่อนปุ่ม arrow back
-            title: const Text(
-              "Quick Mode",
-              style: TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
+            // ── Flavor ──────────────────────────────────────────────────────
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text("Flavor", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ElevatedButton(
+                onPressed: () => _showFlavorSheet(p),
+                style: ElevatedButton.styleFrom(backgroundColor: secondaryColor2,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    elevation: 0),
+                child: const Text('Add descriptors', style: TextStyle(fontSize: 13))),
+            ]),
+            const SizedBox(height: 8),
+            _qDescriptorBox(d.flavorDescriptors,
+                (x) => p.setFlavorDescriptors(List.from(d.flavorDescriptors)..remove(x))),
+            const SizedBox(height: 20),
 
-          // ✅ เพิ่ม bottomNavigationBar
-          bottomNavigationBar: SafeArea(
-            child: Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: Colors.grey.shade300, width: 1),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _exportToPdf(provider),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: secondaryColor2,
-                        side: BorderSide(color: primaryColor2, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(0),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text(
-                        "Export PDF",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Widget destination;
-                        switch (provider.currentRole) {
-                          case UserRole.producer:
-                            destination = const FarmFirstPage();
-                            break;
-                          case UserRole.distributor:
-                            destination = const DistributorFirstPage();
-                            break;
-                          // เพิ่มเงื่อนไขสำหรับ Roaster ตรงนี้
-                          case UserRole.roaster:
-                            destination = const RoasterFirstpage();
-                            break;
-                          case UserRole.consumer:
-                          default:
-                            destination = const FirstPage();
-                            break;
-                        }
+            // ── Defects ──────────────────────────────────────────────────────
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text("Defects", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ElevatedButton(
+                onPressed: () => _showDefectSheet(p),
+                style: ElevatedButton.styleFrom(backgroundColor: secondaryColor2,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    elevation: 0),
+                child: const Text('Add descriptors', style: TextStyle(fontSize: 13))),
+            ]),
+            const SizedBox(height: 8),
+            _qDescriptorBox(d.defectDescriptors,
+                (x) => p.setDefectDescriptors(List.from(d.defectDescriptors)..remove(x)),
+                isDefect: true),
+            const SizedBox(height: 20),
 
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (context) => destination),
-                          (route) => false,
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: secondaryColor2, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(0),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: Text(
-                        "Back",
-                        style: TextStyle(
-                          color: secondaryColor2,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+            // ── Score ────────────────────────────────────────────────────────
+            Row(children: [
+              const Text("Score", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              const Spacer(),
+              IconButton(
+                onPressed: () { if (d.score > 0) p.setScore(d.score - 1); },
+                icon: const Icon(Icons.remove), padding: EdgeInsets.zero,
+                constraints: const BoxConstraints()),
+              const SizedBox(width: 12),
+              Text("${d.score.toInt()}",
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(width: 12),
+              IconButton(
+                onPressed: () => p.setScore(d.score + 1),
+                icon: const Icon(Icons.add), padding: EdgeInsets.zero,
+                constraints: const BoxConstraints()),
+            ]),
+            const SizedBox(height: 24),
 
-          body: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildHeaderCard(),
-                      const SizedBox(height: 16),
-                      _buildCoffeeInfoCard(provider, cupData, currentCupNum),
-                      const SizedBox(height: 20),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        // decoration: BoxDecoration(
-                        //   color: Colors.white,
-                        //   borderRadius: BorderRadius.circular(24),
-                        //   border: Border.all(color: Colors.grey.shade200),
-                        // ),
-                        child: Column(
-                          children: [
-                            _buildChartSummaryBox(cupData),
-                            _buildFinalScoreRow(
-                              "Note",
-                              cupData.fragrance.toStringAsFixed(1),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+            // ── Re-roast ─────────────────────────────────────────────────────
+            const Text("RE-ROAST REQUEST",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 4),
+            const Text("Do you want to re-roast this sample?",
+                style: TextStyle(color: Colors.black87, fontSize: 13)),
+            const SizedBox(height: 10),
+            _reRoastOption(true, d.reRoastRequested, p),
+            _reRoastOption(false, d.reRoastRequested, p),
+            const SizedBox(height: 20),
+
+            // ── Note ─────────────────────────────────────────────────────────
+            const Text("Note", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(height: 8),
+            TextField(controller: _note, maxLines: 4, onChanged: p.setNote,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: secondaryColor2, width: 1.5)),
+                contentPadding: const EdgeInsets.all(12))),
+            const SizedBox(height: 40),
+          ])),
+      );
+    });
   }
 
-  // --- ส่วนประกอบ UI ต่างๆ ---
+  Widget _reRoastOption(bool value, bool current, QuickModeProvider p) =>
+      GestureDetector(
+        onTap: () => p.setReRoast(value),
+        child: Container(
+          decoration: BoxDecoration(
+              color: (current == value) ? primaryColor2.withOpacity(0.08) : null,
+              borderRadius: BorderRadius.circular(8),
+              border: (current == value) ? Border.all(color: primaryColor2.withOpacity(0.3)) : null),
+          child: Row(children: [
+            Radio<bool>(value: value, groupValue: current,
+                activeColor: primaryColor2, onChanged: (_) => p.setReRoast(value)),
+            Text(value ? "Yes" : "No", style: const TextStyle(fontSize: 15)),
+          ])));
+}
 
-  Widget _buildHeaderCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: secondaryColor2,
-        borderRadius: BorderRadius.circular(0),
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 24,
-            backgroundImage: AssetImage('assets/photo/coffepro.png'),
-            backgroundColor: Colors.white,
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Quick Mode",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 22,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Name : xxxxxxx  |  Date : 26.01.23",
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// STEP 2 — Summary per sample (all samples overview before submit)
+// ─────────────────────────────────────────────────────────────────────────────
+class _Step2 extends StatelessWidget {
+  const _Step2();
 
-  Widget _buildCoffeeInfoCard(
-    CuppingProvider provider,
-    dynamic cupData,
-    int currentCupNum,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(0),
-        border: Border.all(
-          color: const Color(0xFFA2A2A2), // ปรับเป็นสีเทาเข้มปานกลาง
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Coffee Name",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  Text(
-                    "Roast level",
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
-                  ),
-                ],
-              ),
-              _buildVerticalDivider(),
-              const Column(
-                children: [
-                  Text("Total Cup", style: TextStyle(fontSize: 13)),
-                  Text(
-                    "5",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                ],
-              ),
-              _buildVerticalDivider(),
-              Column(
-                children: [
-                  const Text("Total Score", style: TextStyle(fontSize: 13)),
-                  Text(
-                    cupData.totalScore.toStringAsFixed(2),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            "Select coffee",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(5, (index) {
-              int cupNum = index + 1;
-              bool isSelected = currentCupNum == cupNum;
-              return GestureDetector(
-                onTap: () => provider.selectCup(cupNum),
-                child: Container(
-                  width: 45,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected ? secondaryColor2 : Colors.white,
-                    border: Border.all(
-                      color: isSelected
-                          ? secondaryColor2
-                          : Colors.grey.shade300,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      "$cupNum",
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<QuickModeProvider>(builder: (_, p, __) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: _qAppBar("Quick Mode"),
+        bottomNavigationBar: _qBottomNav(context,
+          onBack: () => Navigator.pop(context),
+          nextLabel: "Submit",
+          onNext: () {
+            debugPrint("Quick Mode Submit: ${p.buildSubmitPayload()}");
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => _QuickChart(provider: p)));
+          }),
+        body: SingleChildScrollView(padding: const EdgeInsets.all(20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _qHeader(p), const SizedBox(height: 22),
+
+            const Text("Summary", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+
+            ...List.generate(p.totalSamples, (i) {
+              final d = p.allDataForIndex(i)!;
+              final sample = p.session?.samples[i];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                    color: Colors.white, borderRadius: BorderRadius.circular(0),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.06),
+                        blurRadius: 6, offset: const Offset(0, 3))]),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                    Expanded(child: Text(sample?.name ?? "Sample ${i+1}",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(color: secondaryColor2,
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text("${d.score.toInt()}",
+                          style: const TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.bold, fontSize: 16))),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(sample?.roastLevel ?? "",
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                  const SizedBox(height: 12),
+
+                  if (d.flavorDescriptors.isNotEmpty) ...[
+                    const Text("Flavor", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 6, runSpacing: 4,
+                      children: d.flavorDescriptors.map((fl) {
+                        final s = FlavorDescriptorSheet.resolveStyle(fl);
+                        final c = s['color'] as Color;
+                        return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: c.withOpacity(0.7),
+                              borderRadius: BorderRadius.circular(12)),
+                          child: Text(fl, style: const TextStyle(color: Colors.white, fontSize: 12)));
+                      }).toList()),
+                    const SizedBox(height: 10),
+                  ],
+
+                  if (d.defectDescriptors.isNotEmpty) ...[
+                    const Text("Defects", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Wrap(spacing: 6, runSpacing: 4,
+                      children: d.defectDescriptors.map((df) {
+                        final s = DefectDescriptorSheet.resolveStyle(df);
+                        final c = s['color'] as Color;
+                        return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(color: c.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: c.withOpacity(0.5))),
+                          child: Text(df, style: TextStyle(color: c, fontSize: 12,
+                              fontWeight: FontWeight.w500)));
+                      }).toList()),
+                    const SizedBox(height: 10),
+                  ],
+
+                  Row(children: [
+                    Icon(d.reRoastRequested ? Icons.refresh : Icons.check_circle_outline,
+                        size: 16, color: d.reRoastRequested ? Colors.orange : Colors.green),
+                    const SizedBox(width: 6),
+                    Text(d.reRoastRequested ? "Re-roast requested" : "No re-roast",
+                        style: TextStyle(fontSize: 13,
+                            color: d.reRoastRequested ? Colors.orange : Colors.green)),
+                  ]),
+
+                  if (d.note.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text("Note: ${d.note}",
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ]),
               );
             }),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: secondaryColor2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(0),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/icon/shopping.png',
-                    width: 24,
-                    height: 24,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    "Place an order",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            const SizedBox(height: 20),
+          ])),
+      );
+    });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CHART — Result screen
+// ─────────────────────────────────────────────────────────────────────────────
+class _QuickChart extends StatefulWidget {
+  final QuickModeProvider provider;
+  const _QuickChart({required this.provider});
+  @override State<_QuickChart> createState() => _QuickChartState();
+}
+
+class _QuickChartState extends State<_QuickChart> {
+  int _selectedSampleIndex = 0;
+
+  QuickModeSampleData? get _data =>
+      widget.provider.allDataForIndex(_selectedSampleIndex);
+  SampleModel? get _sample =>
+      widget.provider.session?.samples[_selectedSampleIndex];
+
+  @override
+  Widget build(BuildContext context) {
+    final session = widget.provider.session;
+    final d = _data;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: _qAppBar("Quick Mode"),
+      bottomNavigationBar: SafeArea(child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(color: Colors.white,
+            border: Border(top: BorderSide(color: Colors.grey.shade300))),
+        child: ElevatedButton(
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(widget.provider),
+          style: ElevatedButton.styleFrom(backgroundColor: secondaryColor2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+              padding: const EdgeInsets.symmetric(vertical: 16)),
+          child: const Text("Done", style: TextStyle(color: Colors.white,
+              fontSize: 18, fontWeight: FontWeight.bold))))),
+      body: d == null
+          ? const Center(child: Text("No data"))
+          : SingleChildScrollView(padding: const EdgeInsets.all(20),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _qHeader(widget.provider),
+                const SizedBox(height: 16),
+
+                // ── Sample selector ──────────────────────────────────────────
+                _buildSampleSelector(session),
+                const SizedBox(height: 24),
+
+                // ── Score display ────────────────────────────────────────────
+                Container(
+                  width: double.infinity, padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                      color: secondaryColor2.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: secondaryColor2.withOpacity(0.2))),
+                  child: Column(children: [
+                    Text("${_sample?.name ?? 'Score'}",
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Text("${d.score.toInt()}",
+                        style: TextStyle(fontSize: 48, fontWeight: FontWeight.bold,
+                            color: secondaryColor2)),
+                    const SizedBox(height: 4),
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(d.reRoastRequested ? Icons.refresh : Icons.check_circle,
+                          size: 18,
+                          color: d.reRoastRequested ? Colors.orange : Colors.green),
+                      const SizedBox(width: 6),
+                      Text(d.reRoastRequested ? "Re-roast requested" : "Approved",
+                          style: TextStyle(fontSize: 14,
+                              color: d.reRoastRequested ? Colors.orange : Colors.green,
+                              fontWeight: FontWeight.w500)),
+                    ]),
+                  ])),
+                const SizedBox(height: 24),
+
+                // ── Average across all samples ────────────────────────────────
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  const Text("Session Average",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(widget.provider.averageScore.toStringAsFixed(1),
+                      style: TextStyle(fontWeight: FontWeight.bold,
+                          fontSize: 20, color: secondaryColor2)),
+                ]),
+                const SizedBox(height: 24),
+
+                // ── Flavor descriptors ────────────────────────────────────────
+                if (d.flavorDescriptors.isNotEmpty) ...[
+                  const Text("Flavor Descriptors",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 8, runSpacing: 6,
+                    children: d.flavorDescriptors.map((fl) {
+                      final s = FlavorDescriptorSheet.resolveStyle(fl);
+                      final c = s['color'] as Color;
+                      final emoji = (s['emoji'] as String?) ?? '•';
+                      final image = s['image'] as String?;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(color: c.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(20)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          if (image != null)
+                            Image.asset(image, width: 16, height: 16, fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Text(emoji))
+                          else Text(emoji, style: const TextStyle(fontSize: 14)),
+                          const SizedBox(width: 6),
+                          Text(fl, style: const TextStyle(color: Colors.white,
+                              fontSize: 13, fontWeight: FontWeight.w600)),
+                        ]));
+                    }).toList()),
+                  const SizedBox(height: 20),
                 ],
-              ),
-            ),
-          ),
-        ],
-      ),
+
+                // ── Defect descriptors ────────────────────────────────────────
+                if (d.defectDescriptors.isNotEmpty) ...[
+                  const Text("Defects",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 8, runSpacing: 6,
+                    children: d.defectDescriptors.map((df) {
+                      final s = DefectDescriptorSheet.resolveStyle(df);
+                      final c = s['color'] as Color;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(color: c.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: c.withOpacity(0.5))),
+                        child: Text(df, style: TextStyle(fontSize: 13,
+                            color: c, fontWeight: FontWeight.w600)));
+                    }).toList()),
+                  const SizedBox(height: 20),
+                ],
+
+                // ── Note ─────────────────────────────────────────────────────
+                if (d.note.isNotEmpty) ...[
+                  const Text("Note", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 8),
+                  Container(width: double.infinity, padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200)),
+                    child: Text(d.note, style: const TextStyle(fontSize: 14))),
+                  const SizedBox(height: 24),
+                ],
+
+                // ── All samples scores bar ────────────────────────────────────
+                const Text("All Samples",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 12),
+                ...List.generate(widget.provider.totalSamples, (i) {
+                  final sd = widget.provider.allDataForIndex(i)!;
+                  final sn = widget.provider.session?.samples[i].name ?? "Sample ${i+1}";
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                        Text(sn, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text("${sd.score.toInt()}", style: TextStyle(
+                            fontWeight: FontWeight.bold, color: secondaryColor2)),
+                      ]),
+                      const SizedBox(height: 4),
+                      ClipRRect(borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(value: (sd.score / 100).clamp(0.0, 1.0),
+                          minHeight: 8,
+                          backgroundColor: Colors.grey.shade200,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              _selectedSampleIndex == i ? secondaryColor2 : Colors.grey.shade400))),
+                    ]));
+                }),
+                const SizedBox(height: 32),
+              ])),
     );
   }
 
-  Widget _buildChartSummaryBox(dynamic cupData) {
-    return Column(
-      children: [
-        const Text(
-          'Total Score',
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          cupData.totalScore.toStringAsFixed(2),
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: primaryColor2,
-          ),
-        ),
-        const SizedBox(height: 25),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _buildFlavorTag("Floral (2)", Colors.pinkAccent),
-            _buildFlavorTag("Sour (0)", const Color(0xFFC6D53F)),
-            _buildFlavorTag("Citrus Fruit (1)", const Color(0xFFFBB03B)),
-          ],
-        ),
-        const SizedBox(height: 30),
-        SizedBox(
-          height: 200,
-          child: PieChart(
-            PieChartData(
-              sectionsSpace: 2,
-              centerSpaceRadius: 60,
-              sections: [
-                PieChartSectionData(
-                  color: const Color(0xFFFBB03B),
-                  value: cupData.flavor,
-                  title: 'Flavor',
-                  radius: 30,
-                  titleStyle: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                PieChartSectionData(
-                  color: Colors.pinkAccent,
-                  value: cupData.acidity,
-                  title: 'Acidity',
-                  radius: 30,
-                  titleStyle: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                PieChartSectionData(
-                  color: const Color(0xFFC6D53F),
-                  value: cupData.sweetness,
-                  title: 'Sweet',
-                  radius: 30,
-                  titleStyle: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerticalDivider() =>
-      Container(height: 30, width: 1, color: primaryColor2);
-
-  Widget _buildFlavorTag(String text, Color color) {
+  Widget _buildSampleSelector(SessionModel? session) {
+    final count = session?.samples.length ?? 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFinalScoreRow(String title, String score) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-          Text(
-            score,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white,
+          border: Border.all(color: Colors.grey.shade300)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(_sample?.name ?? "", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(color: secondaryColor2,
+                borderRadius: BorderRadius.circular(20)),
+            child: Text("${_data?.score.toInt() ?? 0}",
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+        ]),
+        Text(_sample?.roastLevel ?? "",
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: List.generate(count, (i) {
+          final sel = _selectedSampleIndex == i;
+          return GestureDetector(
+            onTap: () => setState(() => _selectedSampleIndex = i),
+            child: Container(width: 44, height: 44,
+              decoration: BoxDecoration(shape: BoxShape.circle,
+                  color: sel ? secondaryColor2 : Colors.white,
+                  border: Border.all(color: sel ? secondaryColor2 : Colors.grey.shade300)),
+              child: Center(child: Text("${i+1}", style: TextStyle(
+                  color: sel ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.bold)))));
+        })),
+      ]),
     );
   }
 }

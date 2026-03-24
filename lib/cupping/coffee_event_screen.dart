@@ -1,10 +1,11 @@
+import 'dart:io';
 import 'package:coffee/constants.dart';
-import 'package:coffee/cupping/add_cupping_session_screen.dart'
+import 'package:coffee/cupping/createcupping/add_cupping_session_screen.dart'
     hide secondaryColor2;
 import 'package:coffee/cupping/coffee_detail_screen.dart';
-import 'package:coffee/cupping/cupping_evaluation_results_screen.dart';
 import 'package:coffee/cupping/edit_cupping_screen.dart';
 import 'package:coffee/cupping/qr_scanner_screen.dart';
+import 'package:coffee/model/session_model.dart';
 import 'package:flutter/material.dart';
 
 class CoffeeEventScreen extends StatefulWidget {
@@ -15,45 +16,35 @@ class CoffeeEventScreen extends StatefulWidget {
 }
 
 class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
-  // --- 1. เหลือไว้แค่ข้อมูลสำหรับหน้า Create ---
-  final List<Map<String, dynamic>> createEvents = [
-    {
-      "title": "My Created Session",
-      "desc": "Sessions that you have created",
-      "date": "Start Date & Time / End Date",
-      "status": "Open for Evaluation", // ปรับเป็น Open เพื่อให้ไปหน้าฟอร์มได้
-      "statusColor": const Color(0xFFE5F9EA),
-      "statusTextColor": const Color(0xFF4CAF50),
-    },
-  ];
+  // ── Dynamic session list ───────────────────────────────────────────────────
+  final List<SessionModel> _sessions = [];
 
-  void _handleCardTap(BuildContext context, Map<String, dynamic> event) {
-    bool isAvailable = event['status'] == "Open for Evaluation";
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CoffeeDetailScreen(isAvailable: isAvailable),
-      ),
-    );
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  String _formatDate(DateTime dt) {
+    return "${dt.day.toString().padLeft(2, '0')}/"
+        "${dt.month.toString().padLeft(2, '0')}/${dt.year}";
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      // --- 2. แสดงปุ่มสร้าง Session เสมอ ---
+
+      // ── FAB — open AddCoffeeInfoPage and await SessionModel ───────────────
       floatingActionButton: SizedBox(
         width: 59,
         height: 59,
         child: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
+          onPressed: () async {
+            final result = await Navigator.push<SessionModel>(
               context,
               MaterialPageRoute(
                 builder: (context) => const AddCoffeeInfoPage(),
               ),
             );
+            if (result != null) {
+              setState(() => _sessions.add(result));
+            }
           },
           backgroundColor: secondaryColor2,
           shape: const CircleBorder(),
@@ -66,22 +57,23 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
           ),
         ),
       ),
+
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsetsGeometry.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(context),
               const SizedBox(height: 20),
-              // --- 3. ตัด _buildCategories() ออกไป และแสดง List เลย ---
               Expanded(
-                child: ListView.builder(
-                  itemCount: createEvents.length,
-                  itemBuilder: (context, index) {
-                    return _buildEventCard(createEvents[index]);
-                  },
-                ),
+                child: _sessions.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        itemCount: _sessions.length,
+                        itemBuilder: (context, index) =>
+                            _buildSessionCard(_sessions[index], index),
+                      ),
               ),
             ],
           ),
@@ -90,11 +82,34 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
     );
   }
 
-  // --- 4. ปรับสี Header ให้เป็นของหน้า Create ---
-  Widget _buildHeader(BuildContext context) {
-    Color buttonBgColor = primaryColor;
-    Color iconColor = Colors.white;
+  // ── Empty state ────────────────────────────────────────────────────────────
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.coffee_outlined, size: 72, color: Colors.grey.shade200),
+          const SizedBox(height: 16),
+          Text(
+            "No sessions yet",
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Tap + to create your first cupping session",
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+          ),
+        ],
+      ),
+    );
+  }
 
+  // ── Header (search + QR) ──────────────────────────────────────────────────
+  Widget _buildHeader(BuildContext context) {
     return Row(
       children: [
         Expanded(
@@ -122,50 +137,46 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        _buildImageButton(
-          assetPath: 'assets/qrcode.png',
-          backgroundColor: buttonBgColor,
-          iconColor: iconColor,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const QrScannerScreen()),
-            );
-          },
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+          ),
+          child: Container(
+            width: 50,
+            height: 50,
+            decoration: const BoxDecoration(color: Colors.white),
+            child: Center(
+              child: Image.asset(
+                'assets/qrcode.png',
+                width: 28,
+                height: 28,
+                color: Colors.black,
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildImageButton({
-    required String assetPath,
-    required VoidCallback onPressed,
-    required Color backgroundColor,
-    required Color iconColor,
-  }) {
+  // ── Session Card ───────────────────────────────────────────────────────────
+  Widget _buildSessionCard(SessionModel session, int index) {
     return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: const BoxDecoration(color: Colors.white),
-        child: Center(
-          child: Image.asset(
-            assetPath,
-            width: 28,
-            height: 28,
-            color: Colors.black,
+      onTap: () async {
+        final result = await Navigator.push<SessionModel>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CoffeeDetailScreen(
+              isAvailable: !session.isCompleted,
+              session: session,
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  // --- 5. ปรับ Card ให้แสดงปุ่ม Edit และ Read More โดยไม่ต้องมีเงื่อนไข Tab ---
-  Widget _buildEventCard(Map<String, dynamic> event) {
-    return GestureDetector(
-      onTap: () {
-        _handleCardTap(context, event);
+        );
+        // ถ้า detail ส่ง completed session กลับมา → update list
+        if (result != null) {
+          setState(() => _sessions[index] = result);
+        }
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 20),
@@ -185,98 +196,203 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Thumbnail ───────────────────────────────────────────────
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(0),
               ),
-              child: Image.asset(
-                'assets/Image.png',
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: session.imagePath != null
+                  ? Image.file(
+                      File(session.imagePath!),
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.asset(
+                      'assets/Image.png',
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
             ),
+
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    event['title'],
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    event['desc'],
-                    style: TextStyle(color: Colors.grey[500]),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1),
-                  const SizedBox(height: 12),
+                  // ── Title + Status ─────────────────────────────────────
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Image.asset(
-                        'assets/fi_calendar.png',
-                        width: 24,
-                        height: 24,
-                        color: secondaryColor2,
+                      Expanded(
+                        child: Text(
+                          session.cuppingName,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        event['date'],
-                        style: TextStyle(fontSize: 12, color: secondaryColor2),
-                      ),
-                      const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: event['statusColor'],
+                          color: session.isCompleted
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFE5F9EA),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          event['status'],
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: event['statusTextColor'],
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (session.isCompleted) ...[
+                              const Icon(Icons.check_circle,
+                                  size: 10, color: Color(0xFF2E7D32)),
+                              const SizedBox(width: 3),
+                            ],
+                            Text(
+                              session.isCompleted ? "Completed" : "Open",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: session.isCompleted
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFF4CAF50),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // ── Mode + Sample count ────────────────────────────────
+                  Text(
+                    "Mode: ${session.cuppingMode}  •  ${session.samples.length} sample${session.samples.length != 1 ? 's' : ''}",
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                  ),
+
+                  // ── Description ────────────────────────────────────────
+                  if (session.description.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      session.description,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+
+                  // ── Created date ───────────────────────────────────────
+                  Row(
+                    children: [
+                      Image.asset(
+                        'assets/fi_calendar.png',
+                        width: 20,
+                        height: 20,
+                        color: secondaryColor2,
+                        errorBuilder: (_, __, ___) => Icon(
+                          Icons.calendar_today,
+                          size: 18,
+                          color: secondaryColor2,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        "Created: ${_formatDate(session.createdAt)}",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: secondaryColor2,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Image.asset(
-                        'assets/location.png',
-                        width: 24,
-                        height: 24,
-                        color: secondaryColor2,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        "Location",
-                        style: TextStyle(fontSize: 12, color: secondaryColor2),
-                      ),
-                      const Spacer(),
 
-                      // ปุ่ม Edit แสดงเสมอในหน้า Create
+                  // ── Sample chips ───────────────────────────────────────
+                  if (session.samples.isNotEmpty)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: session.samples
+                          .take(3)
+                          .map(
+                            (s) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: secondaryColor2.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                s.name,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: secondaryColor2,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList()
+                        ..addAll(
+                          session.samples.length > 3
+                              ? [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      "+${session.samples.length - 3} more",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                    ),
+
+                  const SizedBox(height: 12),
+
+                  // ── Action buttons ─────────────────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
+                        onPressed: () async {
+                          final result = await Navigator.push<dynamic>(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const EditCuppingScreen(),
+                              builder: (_) => EditCuppingScreen(
+                                session: session,
+                              ),
                             ),
                           );
+                          if (result == 'deleted') {
+                            // ลบ session ออกจาก list
+                            setState(() => _sessions.removeAt(index));
+                          } else if (result is SessionModel) {
+                            // อัพเดต session ที่แก้แล้ว
+                            setState(() => _sessions[index] = result);
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -295,10 +411,21 @@ class _CoffeeEventScreenState extends State<CoffeeEventScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-
-                      // ปุ่ม Read More แสดงเสมอในหน้า Create
                       ElevatedButton(
-                        onPressed: () => _handleCardTap(context, event),
+                        onPressed: () async {
+                          final result = await Navigator.push<SessionModel>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CoffeeDetailScreen(
+                                isAvailable: !session.isCompleted,
+                                session: session,
+                              ),
+                            ),
+                          );
+                          if (result != null) {
+                            setState(() => _sessions[index] = result);
+                          }
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: secondaryColor2,
                           foregroundColor: Colors.white,

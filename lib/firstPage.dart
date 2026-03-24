@@ -15,11 +15,13 @@ class FirstPage extends StatefulWidget {
 class _FirstPageState extends State<FirstPage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const CoffeeHomePage(),
-    const CoffeeEventScreen(),
-    const NotificationsPage(),
-    const ProfilePage(),
+  // ใช้ IndexedStack แทน _pages[_selectedIndex]
+  // เพื่อให้ทุก tab ยังคง state ไว้เมื่อสลับ tab
+  final List<Widget> _pages = const [
+    CoffeeHomePageNew(),
+    CoffeeEventScreen(),
+    
+    ProfilePage(),
   ];
 
   void _onItemTapped(int index) {
@@ -31,7 +33,12 @@ class _FirstPageState extends State<FirstPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      // IndexedStack render ทุก tab พร้อมกัน แต่แสดงแค่ tab ที่ selected
+      // ทำให้ state ของแต่ละ tab ไม่ถูก dispose เมื่อสลับ tab
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -55,19 +62,19 @@ class _FirstPageState extends State<FirstPage> {
           unselectedItemColor: Colors.grey.shade400,
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded, size: 28), // หน้าหลัก
+              icon: Icon(Icons.home_rounded, size: 28),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.coffee_rounded, size: 28), // หน้า Cupping/Event
+              icon: Icon(Icons.coffee_rounded, size: 28),
               label: 'Cupping',
             ),
+            // BottomNavigationBarItem(
+            //   icon: Icon(Icons.notifications_rounded, size: 28),
+            //   label: 'Notifications',
+            // ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.notifications_rounded, size: 28), // แจ้งเตือน
-              label: 'Notifications',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded, size: 28), // โปรไฟล์
+              icon: Icon(Icons.person_rounded, size: 28),
               label: 'Profile',
             ),
           ],

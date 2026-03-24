@@ -1,9 +1,14 @@
 // add_cupping_session_screen.dart
 import 'dart:io';
 import 'package:coffee/constants.dart';
+import 'package:coffee/cupping/createcupping/sampleinfo.dart';
+import 'package:coffee/model/session_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+
+// ignore: non_constant_identifier_names
+final Color secondaryColor2 = const Color(0xFFC67C4E);
 
 class AddCoffeeInfoPage extends StatefulWidget {
   const AddCoffeeInfoPage({super.key});
@@ -15,15 +20,9 @@ class AddCoffeeInfoPage extends StatefulWidget {
 class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
   // ── Controllers ───────────────────────────────────────────────────────────
   final TextEditingController _cuppingNameController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  final TextEditingController _participantLimitController =
-      TextEditingController();
-  final TextEditingController _participationFeeController =
-      TextEditingController();
 
   // ── State ─────────────────────────────────────────────────────────────────
-  bool _hasParticipationFee = false;
   int _selectedSampleIdStructure = 0;
   int? _selectedCuppingModeId;
   bool _isSubmitting = false;
@@ -35,24 +34,20 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
 
   File? _pickedImageFile;
 
-  // ── Sample list (ชื่อ String ธรรมดา ไม่ผูก model) ─────────────────────────
-  final List<String> _sampleNames = [];
+  // ── Samples ───────────────────────────────────────────────────────────────
+  List<SampleModel> _samples = [];
 
   final List<Map<String, dynamic>> _mockModes = [
     {'id': 1, 'name': 'Descriptive'},
     {'id': 2, 'name': 'Affective'},
     {'id': 3, 'name': 'Combined'},
     {'id': 4, 'name': 'Quick Mode'},
-    {'id': 5, 'name': 'Quick Mode 2'},
   ];
 
   @override
   void dispose() {
     _cuppingNameController.dispose();
-    _locationController.dispose();
     _descController.dispose();
-    _participantLimitController.dispose();
-    _participationFeeController.dispose();
     super.dispose();
   }
 
@@ -92,8 +87,9 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
         child: child!,
       ),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() => isStart ? _startDate = picked : _endDate = picked);
+    }
   }
 
   Future<void> _selectTime(
@@ -107,14 +103,15 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
       context: context,
       initialTime: initial,
       builder: (context, child) => Theme(
-        data: Theme.of(
-          context,
-        ).copyWith(colorScheme: ColorScheme.light(primary: secondaryColor2)),
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(primary: secondaryColor2),
+        ),
         child: child!,
       ),
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() => isStart ? _startTime = picked : _endTime = picked);
+    }
   }
 
   Future<void> _pickImage() async {
@@ -125,6 +122,7 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
     if (picked != null) setState(() => _pickedImageFile = File(picked.path));
   }
 
+  // ── Confirm — build SessionModel and pop ──────────────────────────────────
   void _onConfirm() {
     if (_cuppingNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -132,8 +130,33 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
       );
       return;
     }
-    // TODO: เชื่อม Firebase ที่นี่
-    Navigator.pop(context);
+    if (_selectedCuppingModeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a Cupping Mode')),
+      );
+      return;
+    }
+    if (_samples.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least 1 sample')),
+      );
+      return;
+    }
+
+    final modeName = _mockModes.firstWhere(
+      (m) => m['id'] == _selectedCuppingModeId,
+    )['name'] as String;
+
+    final session = SessionModel(
+      cuppingName: _cuppingNameController.text.trim(),
+      description: _descController.text.trim(),
+      cuppingMode: modeName,
+      imagePath: _pickedImageFile?.path,
+      samples: List.unmodifiable(_samples),
+      createdAt: DateTime.now(),
+    );
+
+    Navigator.pop(context, session);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -168,7 +191,8 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
           child: Container(color: Colors.grey.shade300, height: 1),
         ),
       ),
-      // ── Bottom Button ──
+
+      // ── Bottom Confirm Button ──────────────────────────────────────────
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.all(24),
@@ -211,119 +235,33 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
           ),
         ),
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Cupping Name ──
+            // ── Cupping Name ────────────────────────────────────────────
             _buildLabel("Cupping Name"),
             _buildTextField(controller: _cuppingNameController),
             const SizedBox(height: 16),
 
-            // ── Participant Limit ──
-            // _buildLabel("Participant Limit"),
-            // _buildTextField(
-            //   controller: _participantLimitController,
-            //   keyboardType: TextInputType.number,
-            //   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            // ),
-            // const SizedBox(height: 16),
-
-            // // ── Participation Fee ──
-            // Row(
-            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            //   children: [
-            //     _buildLabel("Participation Fee"),
-            //     Switch(
-            //       value: _hasParticipationFee,
-            //       activeColor: secondaryColor2,
-            //       onChanged: (v) => setState(() {
-            //         _hasParticipationFee = v;
-            //         if (!v) _participationFeeController.clear();
-            //       }),
-            //     ),
-            //   ],
-            // ),
-            // if (_hasParticipationFee) ...[
-            //   _buildTextField(
-            //     controller: _participationFeeController,
-            //     keyboardType: TextInputType.number,
-            //     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            //   ),
-            //   const SizedBox(height: 8),
-            // ],
-            const SizedBox(height: 8),
-
-            // ── Upload ──
+            // ── Upload ──────────────────────────────────────────────────
             _buildLabel("Upload Cupping Activity"),
             _buildUploadBox(),
             const SizedBox(height: 16),
 
-            // // ── Start Date & Time ──
-            // _buildLabel("Start Date & Time"),
-            // Row(
-            //   children: [
-            //     Expanded(
-            //       child: _buildDateTimeBox(
-            //         _formatDate(_startDate),
-            //         'assets/icon/calendar.png',
-            //         onTap: () => _selectDate(context, isStart: true),
-            //       ),
-            //     ),
-            //     const SizedBox(width: 12),
-            //     Expanded(
-            //       child: _buildDateTimeBox(
-            //         _formatTime(_startTime),
-            //         'assets/icon/time.png',
-            //         onTap: () => _selectTime(context, isStart: true),
-            //       ),
-            //     ),
-            //   ],
-            // ),
-            // const SizedBox(height: 16),
-
-            // // ── End Date & Time ──
-            // _buildLabel("End Date & Time"),
-            // Row(
-            //   children: [
-            //     Expanded(
-            //       child: _buildDateTimeBox(
-            //         _formatDate(_endDate),
-            //         'assets/icon/calendar.png',
-            //         onTap: () => _selectDate(context, isStart: false),
-            //       ),
-            //     ),
-            //     const SizedBox(width: 12),
-            //     Expanded(
-            //       child: _buildDateTimeBox(
-            //         _formatTime(_endTime),
-            //         'assets/icon/time.png',
-            //         onTap: () => _selectTime(context, isStart: false),
-            //       ),
-            //     ),
-            //   ],
-            // ),
-            // const SizedBox(height: 16),
-
-            // // ── Location ──
-            // _buildLabel("Location"),
-            // _buildTextArea(controller: _locationController),
-            // const SizedBox(height: 8),
-            // _buildMapButton(),
-            // const SizedBox(height: 16),
-
-            // ── Description ──
+            // ── Description ─────────────────────────────────────────────
             _buildLabel("Cupping Activity Description"),
             _buildTextArea(controller: _descController),
             const SizedBox(height: 16),
 
-            // ── Cupping Mode ──
+            // ── Cupping Mode ─────────────────────────────────────────────
             _buildLabel("Choose cupping mode (set by host)"),
             _buildDropdown(),
             const SizedBox(height: 16),
 
-            // ── Sample ID Structure ──
+            // ── Sample ID Structure ──────────────────────────────────────
             _buildLabel("Sample Id Structure"),
             Row(
               children: [
@@ -334,70 +272,109 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
             ),
             const SizedBox(height: 16),
 
-            // ── Coffee Sample ──
+            // ── Coffee Samples (read-only summary) ──────────────────────
             _buildLabel("Coffee Sample"),
-            ..._sampleNames.asMap().entries.map(
-              (entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
+            if (_samples.isNotEmpty) ...[
+              ..._samples.asMap().entries.map(
+                (entry) => Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.grey.shade50,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "${entry.key + 1}.  ${entry.value.name}",
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              "${entry.value.type}  •  ${entry.value.roastLevel}",
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
                         ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            entry.value,
-                            style: const TextStyle(fontSize: 14),
+                      ),
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => _samples.removeAt(entry.key)),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.delete_outline,
+                            color: Colors.red.shade300,
+                            size: 20,
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () =>
-                          setState(() => _sampleNames.removeAt(entry.key)),
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF5350),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(height: 8),
+            ],
+
+            // ── Add Sample Button ────────────────────────────────────────
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    final result = await Navigator.push<List<SampleModel>>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SampleInfoPage(),
+                      ),
+                    );
+                    if (result != null && result.isNotEmpty) {
+                      setState(() => _samples = result);
+                    }
+                  },
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: secondaryColor2,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _samples.isEmpty
+                      ? "Add samples"
+                      : "${_samples.length} sample${_samples.length != 1 ? 's' : ''} added",
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _samples.isEmpty ? Colors.grey[400] : secondaryColor2,
+                    fontWeight: _samples.isEmpty
+                        ? FontWeight.normal
+                        : FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
 
-            // ── Add Sample Button ──
-            GestureDetector(
-              onTap: () {
-                // TODO: เปิดหน้า SampleInfoPage
-                setState(
-                  () => _sampleNames.add("Sample #${_sampleNames.length + 1}"),
-                );
-              },
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: secondaryColor2,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.add, color: Colors.white),
-              ),
-            ),
             const SizedBox(height: 40),
           ],
         ),
@@ -526,32 +503,25 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
         child: _pickedImageFile != null
             ? Image.file(_pickedImageFile!, fit: BoxFit.cover)
             : Center(
-                child: Icon(
-                  Icons.image_outlined,
-                  size: 48,
-                  color: Colors.grey.shade400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.image_outlined,
+                      size: 48,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Tap to upload image",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-      ),
-    );
-  }
-
-  Widget _buildMapButton() {
-    return SizedBox(
-      height: 42,
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: () {
-          /* TODO: MapLocationPicker */
-        },
-        icon: const Icon(Icons.location_on, size: 18, color: Colors.white),
-        label: const Text("Select Location on Map"),
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
-          side: BorderSide(color: secondaryColor2),
-          foregroundColor: Colors.white,
-          backgroundColor: secondaryColor2,
-        ),
       ),
     );
   }
@@ -608,7 +578,8 @@ class _AddCoffeeInfoPageState extends State<AddCoffeeInfoPage> {
             text,
             style: TextStyle(
               fontSize: 10,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontWeight:
+                  isSelected ? FontWeight.bold : FontWeight.normal,
               color: isSelected ? Colors.white : Colors.black87,
             ),
           ),
