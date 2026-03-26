@@ -2,6 +2,9 @@ import 'package:coffee/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:coffee/home/homePage.dart';
 import 'package:coffee/cupping/coffee_event_screen.dart';
+import 'package:coffee/cupping/createcupping/add_cupping_session_screen.dart'
+    hide secondaryColor2;
+import 'package:coffee/model/session_model.dart';
 import 'package:coffee/notifications/notificationsPage.dart';
 import 'package:coffee/profile/profilePage.dart';
 
@@ -15,29 +18,56 @@ class FirstPage extends StatefulWidget {
 class _FirstPageState extends State<FirstPage> {
   int _selectedIndex = 0;
 
-  // ใช้ IndexedStack แทน _pages[_selectedIndex]
-  // เพื่อให้ทุก tab ยังคง state ไว้เมื่อสลับ tab
-  final List<Widget> _pages = const [
-    CoffeeHomePageNew(),
-    CoffeeEventScreen(),
-    
-    ProfilePage(),
-  ];
+  // ── Sessions อยู่ที่นี่ — ส่งลงทั้ง Home tab และ CoffeeEvent tab ──────────
+  final List<SessionModel> _sessions = [];
+
+  // ── Session callbacks ─────────────────────────────────────────────────────
+  void _addSession(SessionModel s) =>
+      setState(() => _sessions.add(s));
+
+  void _updateSession(int index, SessionModel updated) =>
+      setState(() => _sessions[index] = updated);
+
+  void _removeSession(int index) =>
+      setState(() => _sessions.removeAt(index));
+
+  // ── เปิด AddCoffeeInfoPage จาก Home → Quick Action "New Session" ──────────
+  Future<void> _openNewSession() async {
+    final result = await Navigator.push<SessionModel>(
+      context,
+      MaterialPageRoute(builder: (_) => const AddCoffeeInfoPage()),
+    );
+    if (result != null) _addSession(result);
+  }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
+    // สร้าง pages ใน build เพื่อให้รับ _sessions ที่อัพเดตแล้วทุกครั้ง
+    final pages = [
+      // Tab 0 — Home
+      CoffeeHomePageNew(
+        sessions: _sessions,
+        onNewSession: _openNewSession,
+      ),
+      // Tab 1 — CoffeeEvent
+      CoffeeEventScreen(
+        sessions: _sessions,
+        onAdd: _addSession,
+        onUpdate: _updateSession,
+        onRemove: _removeSession,
+      ),
+      // Tab 2 — Profile
+      const ProfilePage(),
+    ];
+
     return Scaffold(
-      // IndexedStack render ทุก tab พร้อมกัน แต่แสดงแค่ tab ที่ selected
-      // ทำให้ state ของแต่ละ tab ไม่ถูก dispose เมื่อสลับ tab
       body: IndexedStack(
         index: _selectedIndex,
-        children: _pages,
+        children: pages,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -69,10 +99,6 @@ class _FirstPageState extends State<FirstPage> {
               icon: Icon(Icons.coffee_rounded, size: 28),
               label: 'Cupping',
             ),
-            // BottomNavigationBarItem(
-            //   icon: Icon(Icons.notifications_rounded, size: 28),
-            //   label: 'Notifications',
-            // ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_rounded, size: 28),
               label: 'Profile',

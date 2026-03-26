@@ -19,7 +19,7 @@ class _FarmFirstPageState extends State<FarmFirstPage> {
   // รายการหน้าจอสำหรับโหมด Farm
   final List<Widget> _pages = [
     const FarmHomePage(),
-    const CoffeeEventScreen(),
+    // const CoffeeEventScreen(),
     // const CoffeeEventListOnlyScreen(), // ใช้หน้าเดิมจาก General User
     const NotificationsPage(),
     const ProfilePage() // ใช้หน้าเดิมจาก General User

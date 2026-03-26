@@ -17,7 +17,7 @@ class _FirstPageState extends State<RoasterFirstpage> {
 
   final List<Widget> _pages = [
     const RoasterHomepage(),
-    const CoffeeEventScreen(), 
+    // const CoffeeEventScreen(), 
     const NotificationsPage(),
     const DistributorProfilePage(),
   ];

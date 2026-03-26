@@ -17,7 +17,7 @@ class _FirstPageState extends State<DistributorFirstPage> {
 
   final List<Widget> _pages = [
     const SellerHomePage(),
-    const CoffeeEventScreen(), 
+    // const CoffeeEventScreen(), 
     const NotificationsPage(),
     const DistributorProfilePage(),
   ];
