@@ -5,9 +5,7 @@ import 'package:coffee/constants.dart';
 import 'package:coffee/model/session_model.dart';
 
 class CoffeeHomePageNew extends StatefulWidget {
-  // รับ sessions จริงจาก parent (firstPage หรือ IndexedStack)
   final List<SessionModel> sessions;
-  // callback เมื่อกด "New Session" ใน Quick Actions
   final VoidCallback? onNewSession;
 
   const CoffeeHomePageNew({
@@ -30,7 +28,6 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
     "assets/images/Banner - 1.png",
   ];
 
-  // ── Computed stats จาก sessions จริง ──────────────────────────────────────
   int get _totalSessions => widget.sessions.length;
 
   int get _completedSessions =>
@@ -45,24 +42,18 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
         .length;
   }
 
-  // ── Recent sessions (3 อันล่าสุด เรียงตาม createdAt) ──────────────────────
   List<SessionModel> get _recentSessions {
     final sorted = [...widget.sessions]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return sorted.take(3).toList();
   }
 
-  // ── Top flavor descriptors จาก completedProvider ──────────────────────────
-  // นับ descriptors ทั้งหมดจาก session ที่เสร็จแล้ว
   List<Map<String, dynamic>> get _topDescriptors {
     final counts = <String, int>{};
     for (final s in widget.sessions.where((s) => s.isCompleted)) {
       final cp = s.completedProvider;
       if (cp == null) continue;
-
-      // ดึง descriptors จาก provider ต่าง ๆ ผ่าน dynamic
       try {
-        // Descriptive / Combined มี fragranceAromaDescriptors, flavorAftertasteDescriptors ฯลฯ
         final d = cp.allDataForIndex(0);
         if (d == null) continue;
         void addAll(List<String>? list) {
@@ -71,13 +62,10 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
             counts[item] = (counts[item] ?? 0) + 1;
           }
         }
-
-        // รองรับ DescriptiveFormData / CombinedSampleData
         try { addAll(d.fragranceAromaDescriptors as List<String>?); } catch (_) {}
         try { addAll(d.flavorAftertasteDescriptors as List<String>?); } catch (_) {}
         try { addAll(d.mouthfeelDescriptors as List<String>?); } catch (_) {}
         try { addAll(d.mainTastes as List<String>?); } catch (_) {}
-        // QuickModeSampleData
         try { addAll(d.flavorDescriptors as List<String>?); } catch (_) {}
       } catch (_) {}
     }
@@ -111,7 +99,7 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F0EB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -121,8 +109,8 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
               const SizedBox(height: 20),
               _buildImageBanner(),
               _buildQuickStats(),
-              // _buildQuickActions(context),
-              _buildSectionTitle("Recent Sessions", showAll: _totalSessions > 3),
+              _buildSectionTitle("Recent Sessions",
+                  showAll: _totalSessions > 3),
               _recentSessions.isEmpty
                   ? _buildEmptyRecent()
                   : _buildRecentSessions(),
@@ -148,8 +136,8 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
         children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text("Tasting Note",
-                style:
-                    TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.85), fontSize: 13)),
             const SizedBox(height: 4),
             const Text("Cupper",
                 style: TextStyle(
@@ -233,6 +221,7 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
   }
 
   // ── Quick Stats ────────────────────────────────────────────────────────────
+  // ✅ เพิ่ม border ชัดขึ้น + divider แบ่งระหว่าง stat แต่ละตัว
   Widget _buildQuickStats() {
     final stats = [
       {
@@ -263,24 +252,35 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        // ✅ border ชัดขึ้น จาก opacity 0 → solid
+        border: Border.all(color: Colors.grey.shade300, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            spreadRadius: 0,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Row(
-        children: stats.map((s) {
+        children: stats.asMap().entries.map((entry) {
+          final i = entry.key;
+          final s = entry.value;
           return Expanded(
             child: Container(
+              // ✅ divider แนวตั้งระหว่างแต่ละ stat
+              decoration: BoxDecoration(
+                border: i > 0
+                    ? const Border(
+                        left: BorderSide(color: Color(0xFFE0E0E0), width: 1))
+                    : null,
+              ),
               padding:
-                  const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                  const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
               child: Column(children: [
                 Icon(s["icon"] as IconData,
                     color: s["color"] as Color, size: 22),
@@ -288,7 +288,7 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
                 Text(s["value"] as String,
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: 20,
                         color: s["color"] as Color)),
                 const SizedBox(height: 3),
                 Text(s["label"] as String,
@@ -305,92 +305,20 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
     );
   }
 
-  // ── Quick Actions ──────────────────────────────────────────────────────────
-  Widget _buildQuickActions(BuildContext context) {
-    final actions = [
-      {
-        "label": "New\nSession",
-        "icon": Icons.add_circle_outline,
-        "color": secondaryColor2,
-        "onTap": widget.onNewSession ?? () {},
-      },
-      {
-        "label": "Scan\nQR",
-        "icon": Icons.qr_code_scanner,
-        "color": const Color(0xFF1A3A8F),
-        "onTap": () {},
-      },
-      {
-        "label": "My\nResults",
-        "icon": Icons.insert_chart_outlined,
-        "color": const Color(0xFF4CAF50),
-        "onTap": () {},
-      },
-      {
-        "label": "Compare",
-        "icon": Icons.compare_arrows_rounded,
-        "color": const Color(0xFFE91E8C),
-        "onTap": () {},
-      },
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Row(
-        children: actions.map((a) {
-          final color = a["color"] as Color;
-          return Expanded(
-            child: GestureDetector(
-              onTap: a["onTap"] as VoidCallback,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: color.withOpacity(0.2)),
-                ),
-                child: Column(children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(a["icon"] as IconData,
-                        color: color, size: 22),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(a["label"] as String,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: color,
-                          height: 1.3)),
-                ]),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   // ── Empty recent state ─────────────────────────────────────────────────────
   Widget _buildEmptyRecent() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(32),
-      width: double.infinity,  
+      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade300, width: 1.2),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 10,
               offset: const Offset(0, 3))
         ],
       ),
@@ -410,99 +338,123 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
   }
 
   // ── Recent Sessions ────────────────────────────────────────────────────────
+  // ✅ border ชัดขึ้น + left accent bar ตามสี mode
   Widget _buildRecentSessions() {
     return Column(
       children: _recentSessions.map((session) {
         final modeColor = _modeColor(session.cuppingMode);
         return Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
+            // ✅ border ชัดขึ้น
+            border: Border.all(color: Colors.grey.shade300, width: 1.2),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
+                  color: Colors.black.withOpacity(0.07),
+                  blurRadius: 10,
+                  spreadRadius: 0,
                   offset: const Offset(0, 3))
             ],
           ),
-          child: Row(children: [
-            // Mode icon
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: secondaryColor2.withOpacity(0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_modeIcon(session.cuppingMode),
-                  color: secondaryColor2, size: 24),
-            ),
-            const SizedBox(width: 14),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ✅ accent bar ซ้าย สีตาม mode
+                  Container(width: 5, color: modeColor),
 
-            Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(session.cuppingName,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 14),
-                                overflow: TextOverflow.ellipsis),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(children: [
+                        // Mode icon
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: modeColor.withOpacity(0.12),
+                            shape: BoxShape.circle,
                           ),
-                          _statusBadge(session.isCompleted),
-                        ]),
-                    const SizedBox(height: 4),
-                    Row(children: [
-                      _tag(session.cuppingMode, modeColor),
-                      const SizedBox(width: 6),
-                      _tag(
-                          "${session.samples.length} sample${session.samples.length != 1 ? 's' : ''}",
-                          Colors.grey.shade500),
-                    ]),
-                    const SizedBox(height: 4),
-                    // Sample chips (แสดงสูงสุด 2)
-                    if (session.samples.isNotEmpty)
-                      Text(
-                        session.samples
-                            .take(2)
-                            .map((s) => s.name)
-                            .join(", ") +
-                            (session.samples.length > 2
-                                ? " +${session.samples.length - 2}"
-                                : ""),
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade400),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatDate(session.createdAt),
-                      style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade400),
-                    ),
-                  ]),
-            ),
-            const SizedBox(width: 10),
+                          child: Icon(_modeIcon(session.cuppingMode),
+                              color: modeColor, size: 22),
+                        ),
+                        const SizedBox(width: 12),
 
-            // Thumbnail หรือ arrow
-            if (session.imagePath != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.file(
-                  File(session.imagePath!),
-                  width: 52,
-                  height: 52,
-                  fit: BoxFit.cover,
-                ),
-              )
-            else
-              Icon(Icons.chevron_right, color: Colors.grey.shade300),
-          ]),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(session.cuppingName,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14),
+                                            overflow: TextOverflow.ellipsis),
+                                      ),
+                                      _statusBadge(session.isCompleted),
+                                    ]),
+                                const SizedBox(height: 4),
+                                Row(children: [
+                                  _tag(session.cuppingMode, modeColor),
+                                  const SizedBox(width: 6),
+                                  _tag(
+                                      "${session.samples.length} sample${session.samples.length != 1 ? 's' : ''}",
+                                      Colors.grey.shade500),
+                                ]),
+                                const SizedBox(height: 4),
+                                if (session.samples.isNotEmpty)
+                                  Text(
+                                    session.samples
+                                            .take(2)
+                                            .map((s) => s.name)
+                                            .join(", ") +
+                                        (session.samples.length > 2
+                                            ? " +${session.samples.length - 2}"
+                                            : ""),
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade400),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatDate(session.createdAt),
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.grey.shade400),
+                                ),
+                              ]),
+                        ),
+                        const SizedBox(width: 8),
+
+                        // Thumbnail หรือ arrow
+                        if (session.imagePath != null)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              File(session.imagePath!),
+                              width: 52,
+                              height: 52,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        else
+                          Icon(Icons.chevron_right,
+                              color: Colors.grey.shade300),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         );
       }).toList(),
     );
@@ -521,10 +473,11 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300, width: 1.2),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 10,
               offset: const Offset(0, 3))
         ],
       ),
@@ -569,8 +522,7 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
                     value: count / maxCount,
                     minHeight: 8,
                     backgroundColor: Colors.grey.shade100,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(color),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
                   ),
                 ),
               ),
@@ -595,72 +547,85 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
   Widget _buildSectionTitle(String title, {bool showAll = false}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(title,
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.bold)),
-        if (showAll)
-          GestureDetector(
-            onTap: () {},
-            child: Text("View all",
-                style: TextStyle(
-                    fontSize: 13,
-                    color: secondaryColor2,
-                    fontWeight: FontWeight.w500)),
-          ),
-      ]),
+      child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.bold)),
+            if (showAll)
+              GestureDetector(
+                onTap: () {},
+                child: Text("View all",
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: secondaryColor2,
+                        fontWeight: FontWeight.w500)),
+              ),
+          ]),
     );
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   String _formatDate(DateTime dt) {
     const months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
   }
 
   Widget _statusBadge(bool completed) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: completed
-          ? const Color(0xFFE8F5E9)
-          : const Color(0xFFFFF3E0),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(
-          completed
-              ? Icons.check_circle
-              : Icons.radio_button_unchecked,
-          size: 10,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
           color: completed
-              ? const Color(0xFF2E7D32)
-              : Colors.orange.shade700),
-      const SizedBox(width: 3),
-      Text(completed ? "Done" : "Open",
-          style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
+              ? const Color(0xFFE8F5E9)
+              : const Color(0xFFFFF3E0),
+          borderRadius: BorderRadius.circular(20),
+          // ✅ border บน badge ด้วย
+          border: Border.all(
+            color: completed
+                ? const Color(0xFF4CAF50)
+                : Colors.orange.shade300,
+            width: 0.8,
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(
+              completed
+                  ? Icons.check_circle
+                  : Icons.radio_button_unchecked,
+              size: 10,
               color: completed
                   ? const Color(0xFF2E7D32)
-                  : Colors.orange.shade700)),
-    ]),
-  );
+                  : Colors.orange.shade700),
+          const SizedBox(width: 3),
+          Text(completed ? "Done" : "Open",
+              style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: completed
+                      ? const Color(0xFF2E7D32)
+                      : Colors.orange.shade700)),
+        ]),
+      );
 
   Widget _tag(String label, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(4),
-    ),
-    child: Text(label,
-        style: TextStyle(
-            fontSize: 10,
-            color: color,
-            fontWeight: FontWeight.w500)),
-  );
+        padding:
+            const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(4),
+          // ✅ border บน tag
+          border: Border.all(color: color.withOpacity(0.4), width: 0.8),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w500)),
+      );
 
   Color _modeColor(String mode) {
     switch (mode) {
