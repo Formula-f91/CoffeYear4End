@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "41238558506",
+    "project_id": "cuptaste-36535",
+    "storage_bucket": "cuptaste-36535.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:41238558506:android:ce1f10a8878ff54cba5053",
+        "android_client_info": {
+          "package_name": "com.asha.tedh.coffee.app.coffee"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBoCUZMrj0bK_jvJSqUPByfyiNoioi0L_Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

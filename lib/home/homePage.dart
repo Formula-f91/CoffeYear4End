@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:coffee/constants.dart';
 import 'package:coffee/model/session_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CoffeeHomePageNew extends StatefulWidget {
   final List<SessionModel> sessions;
@@ -23,8 +24,8 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
   final PageController _bannerController = PageController();
 
   final List<String> _bannerImages = [
-    "assets/images/Banner_1.png",
-    "assets/images/Banner_2.jpg",
+    "assets/images/cupping.jpg",
+    "assets/images/shocup.jpg",
     "assets/images/Banner - 1.png",
   ];
 
@@ -37,8 +38,10 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
     return widget.sessions
-        .where((s) =>
-            s.createdAt.isAfter(weekStart.subtract(const Duration(days: 1))))
+        .where(
+          (s) =>
+              s.createdAt.isAfter(weekStart.subtract(const Duration(days: 1))),
+        )
         .length;
   }
 
@@ -62,11 +65,22 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
             counts[item] = (counts[item] ?? 0) + 1;
           }
         }
-        try { addAll(d.fragranceAromaDescriptors as List<String>?); } catch (_) {}
-        try { addAll(d.flavorAftertasteDescriptors as List<String>?); } catch (_) {}
-        try { addAll(d.mouthfeelDescriptors as List<String>?); } catch (_) {}
-        try { addAll(d.mainTastes as List<String>?); } catch (_) {}
-        try { addAll(d.flavorDescriptors as List<String>?); } catch (_) {}
+
+        try {
+          addAll(d.fragranceAromaDescriptors as List<String>?);
+        } catch (_) {}
+        try {
+          addAll(d.flavorAftertasteDescriptors as List<String>?);
+        } catch (_) {}
+        try {
+          addAll(d.mouthfeelDescriptors as List<String>?);
+        } catch (_) {}
+        try {
+          addAll(d.mainTastes as List<String>?);
+        } catch (_) {}
+        try {
+          addAll(d.flavorDescriptors as List<String>?);
+        } catch (_) {}
       } catch (_) {}
     }
 
@@ -83,11 +97,19 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
       Color(0xFF4CAF50),
     ];
 
-    return sorted.take(5).toList().asMap().entries.map((e) => {
-      "label": e.value.key,
-      "count": e.value.value,
-      "color": colors[e.key % colors.length],
-    }).toList();
+    return sorted
+        .take(5)
+        .toList()
+        .asMap()
+        .entries
+        .map(
+          (e) => {
+            "label": e.value.key,
+            "count": e.value.value,
+            "color": colors[e.key % colors.length],
+          },
+        )
+        .toList();
   }
 
   @override
@@ -109,8 +131,10 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
               const SizedBox(height: 20),
               _buildImageBanner(),
               _buildQuickStats(),
-              _buildSectionTitle("Recent Sessions",
-                  showAll: _totalSessions > 3),
+              _buildSectionTitle(
+                "Recent Sessions",
+                showAll: _totalSessions > 3,
+              ),
               _recentSessions.isEmpty
                   ? _buildEmptyRecent()
                   : _buildRecentSessions(),
@@ -128,23 +152,39 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
 
   // ── Header ─────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = (user?.displayName?.isNotEmpty == true)
+        ? user!.displayName!
+        : user?.email?.split('@').first ?? 'Cupper';
+    final photoURL = user?.photoURL;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       color: secondaryColor2,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Tasting Note",
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Cuptaste",
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.85), fontSize: 13)),
-            const SizedBox(height: 4),
-            const Text("Cupper",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold)),
-          ]),
+                  color: Colors.white.withOpacity(0.85),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                displayName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
           Container(
             width: 46,
             height: 46,
@@ -154,12 +194,25 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
               color: Colors.white.withOpacity(0.2),
             ),
             child: ClipOval(
-              child: Image.asset(
-                'assets/photo/coffepro.png',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.person, color: Colors.white, size: 28),
-              ),
+              child: photoURL != null
+                  ? Image.network(
+                      photoURL,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    )
+                  : Image.asset(
+                      'assets/photo/coffepro.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -169,55 +222,61 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
 
   // ── Image Banner ───────────────────────────────────────────────────────────
   Widget _buildImageBanner() {
-    return Column(children: [
-      SizedBox(
-        height: 160,
-        child: PageView.builder(
-          controller: _bannerController,
-          onPageChanged: (i) => setState(() => _currentBannerIndex = i),
-          itemCount: _bannerImages.length,
-          itemBuilder: (_, i) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.asset(
-                _bannerImages[i],
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    color: secondaryColor2.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(14),
+    return Column(
+      children: [
+        SizedBox(
+          height: 160,
+          child: PageView.builder(
+            controller: _bannerController,
+            onPageChanged: (i) => setState(() => _currentBannerIndex = i),
+            itemCount: _bannerImages.length,
+            itemBuilder: (_, i) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.asset(
+                  _bannerImages[i],
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  errorBuilder: (_, __, ___) => Container(
+                    decoration: BoxDecoration(
+                      color: secondaryColor2.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.image_outlined,
+                        size: 48,
+                        color: secondaryColor2.withOpacity(0.4),
+                      ),
+                    ),
                   ),
-                  child: Center(
-                    child: Icon(Icons.image_outlined,
-                        size: 48, color: secondaryColor2.withOpacity(0.4))),
                 ),
               ),
             ),
           ),
         ),
-      ),
-      const SizedBox(height: 10),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(
-          _bannerImages.length,
-          (i) => AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            width: _currentBannerIndex == i ? 20 : 8,
-            height: 6,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            decoration: BoxDecoration(
-              color: _currentBannerIndex == i
-                  ? secondaryColor2
-                  : Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(3),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _bannerImages.length,
+            (i) => AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: _currentBannerIndex == i ? 20 : 8,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: _currentBannerIndex == i
+                    ? secondaryColor2
+                    : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(3),
+              ),
             ),
           ),
         ),
-      ),
-    ]);
+      ],
+    );
   }
 
   // ── Quick Stats ────────────────────────────────────────────────────────────
@@ -276,28 +335,39 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
               decoration: BoxDecoration(
                 border: i > 0
                     ? const Border(
-                        left: BorderSide(color: Color(0xFFE0E0E0), width: 1))
+                        left: BorderSide(color: Color(0xFFE0E0E0), width: 1),
+                      )
                     : null,
               ),
-              padding:
-                  const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
-              child: Column(children: [
-                Icon(s["icon"] as IconData,
-                    color: s["color"] as Color, size: 22),
-                const SizedBox(height: 6),
-                Text(s["value"] as String,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+              child: Column(
+                children: [
+                  Icon(
+                    s["icon"] as IconData,
+                    color: s["color"] as Color,
+                    size: 22,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    s["value"] as String,
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                        color: s["color"] as Color)),
-                const SizedBox(height: 3),
-                Text(s["label"] as String,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: s["color"] as Color,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    s["label"] as String,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade500,
-                        height: 1.3)),
-              ]),
+                      fontSize: 10,
+                      color: Colors.grey.shade500,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -317,23 +387,31 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
         border: Border.all(color: Colors.grey.shade300, width: 1.2),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 3))
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
-      child: Column(children: [
-        Icon(Icons.coffee_outlined, size: 48, color: Colors.grey.shade200),
-        const SizedBox(height: 12),
-        Text("No sessions yet",
+      child: Column(
+        children: [
+          Icon(Icons.coffee_outlined, size: 48, color: Colors.grey.shade200),
+          const SizedBox(height: 12),
+          Text(
+            "No sessions yet",
             style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade400)),
-        const SizedBox(height: 4),
-        Text("Tap New Session to get started",
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
-      ]),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Tap New Session to get started",
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+          ),
+        ],
+      ),
     );
   }
 
@@ -352,10 +430,11 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
             border: Border.all(color: Colors.grey.shade300, width: 1.2),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withOpacity(0.07),
-                  blurRadius: 10,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 3))
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 10,
+                spreadRadius: 0,
+                offset: const Offset(0, 3),
+              ),
             ],
           ),
           child: ClipRRect(
@@ -370,45 +449,56 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.all(14),
-                      child: Row(children: [
-                        // Mode icon
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: modeColor.withOpacity(0.12),
-                            shape: BoxShape.circle,
+                      child: Row(
+                        children: [
+                          // Mode icon
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: modeColor.withOpacity(0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _modeIcon(session.cuppingMode),
+                              color: modeColor,
+                              size: 22,
+                            ),
                           ),
-                          child: Icon(_modeIcon(session.cuppingMode),
-                              color: modeColor, size: 22),
-                        ),
-                        const SizedBox(width: 12),
+                          const SizedBox(width: 12),
 
-                        Expanded(
-                          child: Column(
+                          Expanded(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Expanded(
-                                        child: Text(session.cuppingName,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14),
-                                            overflow: TextOverflow.ellipsis),
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        session.cuppingName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      _statusBadge(session.isCompleted),
-                                    ]),
+                                    ),
+                                    _statusBadge(session.isCompleted),
+                                  ],
+                                ),
                                 const SizedBox(height: 4),
-                                Row(children: [
-                                  _tag(session.cuppingMode, modeColor),
-                                  const SizedBox(width: 6),
-                                  _tag(
+                                Row(
+                                  children: [
+                                    _tag(session.cuppingMode, modeColor),
+                                    const SizedBox(width: 6),
+                                    _tag(
                                       "${session.samples.length} sample${session.samples.length != 1 ? 's' : ''}",
-                                      Colors.grey.shade500),
-                                ]),
+                                      Colors.grey.shade500,
+                                    ),
+                                  ],
+                                ),
                                 const SizedBox(height: 4),
                                 if (session.samples.isNotEmpty)
                                   Text(
@@ -420,35 +510,42 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
                                             ? " +${session.samples.length - 2}"
                                             : ""),
                                     style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade400),
+                                      fontSize: 11,
+                                      color: Colors.grey.shade400,
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 const SizedBox(height: 4),
                                 Text(
                                   _formatDate(session.createdAt),
                                   style: TextStyle(
-                                      fontSize: 11, color: Colors.grey.shade400),
+                                    fontSize: 11,
+                                    color: Colors.grey.shade400,
+                                  ),
                                 ),
-                              ]),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Thumbnail หรือ arrow
-                        if (session.imagePath != null)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              File(session.imagePath!),
-                              width: 52,
-                              height: 52,
-                              fit: BoxFit.cover,
+                              ],
                             ),
-                          )
-                        else
-                          Icon(Icons.chevron_right,
-                              color: Colors.grey.shade300),
-                      ]),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // Thumbnail หรือ arrow
+                          if (session.imagePath != null)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(session.imagePath!),
+                                width: 52,
+                                height: 52,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          else
+                            Icon(
+                              Icons.chevron_right,
+                              color: Colors.grey.shade300,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -476,9 +573,10 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
         border: Border.all(color: Colors.grey.shade300, width: 1.2),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.07),
-              blurRadius: 10,
-              offset: const Offset(0, 3))
+            color: Colors.black.withOpacity(0.07),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
         ],
       ),
       child: Column(
@@ -490,53 +588,66 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Row(children: [
-              SizedBox(
-                width: 22,
-                child: Text("${i + 1}",
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  child: Text(
+                    "${i + 1}",
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: i == 0
-                            ? secondaryColor2
-                            : Colors.grey.shade400)),
-              ),
-              const SizedBox(width: 8),
-              Container(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: i == 0 ? secondaryColor2 : Colors.grey.shade400,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                      color: color, shape: BoxShape.circle)),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 70,
-                child: Text(item["label"] as String,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: count / maxCount,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey.shade100,
-                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                    color: color,
+                    shape: BoxShape.circle,
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              SizedBox(
-                width: 24,
-                child: Text("$count",
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    item["label"] as String,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: count / maxCount,
+                      minHeight: 8,
+                      backgroundColor: Colors.grey.shade100,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 24,
+                  child: Text(
+                    "$count",
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: Colors.grey.shade600),
-                    textAlign: TextAlign.end),
-              ),
-            ]),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                ),
+              ],
+            ),
           );
         }).toList(),
       ),
@@ -548,92 +659,106 @@ class _CoffeeHomePageNewState extends State<CoffeeHomePageNew> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
       child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.bold)),
-            if (showAll)
-              GestureDetector(
-                onTap: () {},
-                child: Text("View all",
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: secondaryColor2,
-                        fontWeight: FontWeight.w500)),
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          if (showAll)
+            GestureDetector(
+              onTap: () {},
+              child: Text(
+                "View all",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: secondaryColor2,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-          ]),
+            ),
+        ],
+      ),
     );
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   String _formatDate(DateTime dt) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
   }
 
   Widget _statusBadge(bool completed) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: completed
-              ? const Color(0xFFE8F5E9)
-              : const Color(0xFFFFF3E0),
-          borderRadius: BorderRadius.circular(20),
-          // ✅ border บน badge ด้วย
-          border: Border.all(
-            color: completed
-                ? const Color(0xFF4CAF50)
-                : Colors.orange.shade300,
-            width: 0.8,
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: completed ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+      borderRadius: BorderRadius.circular(20),
+      // ✅ border บน badge ด้วย
+      border: Border.all(
+        color: completed ? const Color(0xFF4CAF50) : Colors.orange.shade300,
+        width: 0.8,
+      ),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          completed ? Icons.check_circle : Icons.radio_button_unchecked,
+          size: 10,
+          color: completed ? const Color(0xFF2E7D32) : Colors.orange.shade700,
+        ),
+        const SizedBox(width: 3),
+        Text(
+          completed ? "Done" : "Open",
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: completed ? const Color(0xFF2E7D32) : Colors.orange.shade700,
           ),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(
-              completed
-                  ? Icons.check_circle
-                  : Icons.radio_button_unchecked,
-              size: 10,
-              color: completed
-                  ? const Color(0xFF2E7D32)
-                  : Colors.orange.shade700),
-          const SizedBox(width: 3),
-          Text(completed ? "Done" : "Open",
-              style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: completed
-                      ? const Color(0xFF2E7D32)
-                      : Colors.orange.shade700)),
-        ]),
-      );
+      ],
+    ),
+  );
 
   Widget _tag(String label, Color color) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
-          // ✅ border บน tag
-          border: Border.all(color: color.withOpacity(0.4), width: 0.8),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: FontWeight.w500)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(4),
+      // ✅ border บน tag
+      border: Border.all(color: color.withOpacity(0.4), width: 0.8),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500),
+    ),
+  );
 
   Color _modeColor(String mode) {
     switch (mode) {
-      case 'Affective':   return secondaryColor2;
-      case 'Descriptive': return const Color(0xFF1A3A8F);
-      case 'Combined':    return const Color(0xFF4CAF50);
-      case 'Quick Mode':  return const Color(0xFFE91E8C);
-      default:            return Colors.grey;
+      case 'Affective':
+        return secondaryColor2;
+      case 'Descriptive':
+        return const Color(0xFF1A3A8F);
+      case 'Combined':
+        return const Color(0xFF4CAF50);
+      case 'Quick Mode':
+        return const Color(0xFFE91E8C);
+      default:
+        return Colors.grey;
     }
   }
 

@@ -1,6 +1,10 @@
-import 'package:coffee/login/add_basic_user.dart';
+import 'package:coffee/firstPage.dart';
+import 'package:coffee/login/registerpage.dart';
 import 'package:flutter/material.dart';
-import 'package:coffee/constants.dart'; // ดึงค่า primaryColor2 มาใช้
+import 'package:provider/provider.dart';
+import 'package:coffee/constants.dart';
+import 'package:coffee/cupping/model_provider.dart/cupping_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -10,210 +14,367 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _usernameController = TextEditingController(); // ใช้เป็น email
+  final _passwordController = TextEditingController();
   bool _isObscure = true;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    FocusScope.of(context).unfocus();
+
+    final email = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+
+      final cuppingProvider = Provider.of<CuppingProvider>(
+        context,
+        listen: false,
+      );
+      cuppingProvider.setUserRole(UserRole.consumer);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const FirstPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String msg = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+      if (e.code == 'user-not-found') msg = 'ไม่พบบัญชีผู้ใช้นี้';
+      if (e.code == 'wrong-password') msg = 'รหัสผ่านไม่ถูกต้อง';
+      if (e.code == 'invalid-credential') msg = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+      if (e.code == 'invalid-email') msg = 'รูปแบบอีเมลไม่ถูกต้อง';
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final padding = MediaQuery.of(context).padding;
+    final double bannerHeight = size.height * 0.45;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      backgroundColor: const Color(0xFFF5F0EB),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Stack(
+          children: [
+            // ── Main Content ───────────────────────────────────────────────
+            SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(height: size.height * 0.06),
-                  
-                  const Text(
-                    'Login',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Please enter your username and password\nto log in.',
-                    style: TextStyle(fontSize: 16, color: Colors.black),
-                  ),
-                  SizedBox(height: size.height * 0.04),
-
-                  // --- Username ---
-                  const Text(
-                    'Username',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    decoration: InputDecoration(
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(0),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      // เปลี่ยนขอบตอน Focus เป็นสีน้ำเงิน
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor2, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // --- Password ---
-                  const Text(
-                    'Password',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    obscureText: _isObscure,
-                    decoration: InputDecoration(
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(0),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      // เปลี่ยนขอบตอน Focus เป็นสีน้ำเงิน
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor2, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isObscure
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                        ),
-                        onPressed: () => setState(() => _isObscure = !_isObscure),
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-
-                  // ลิงก์ลืมรหัสผ่าน (เปลี่ยนเป็นสีน้ำเงิน)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {},
-                      child: Text(
-                        'Forgot Password ?',
-                        style: TextStyle(color: primaryColor2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // --- ปุ่ม Login ---
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const UserPage2()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: secondaryColor2, // สีน้ำเงิน
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(0),
-                        ),
-                      ),
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(fontSize: 18, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                 const SizedBox(height: 20), // ระยะห่างระหว่างสองปุ่ม
-
-                  // --- ปุ่ม Register (แบบเต็มปุ่ม) ---
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const UserPage2()),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: primaryColor2, width: 1.5), // เส้นขอบสีน้ำเงิน
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(0),
-                        ),
-                      ),
-                      child: Text(
-                        'Register',
-                        style: TextStyle(
-                          fontSize: 18, 
-                          color: primaryColor2, // ตัวหนังสือสีน้ำเงิน
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: size.height * 0.02),
-                  const Row(
+                  Stack(
+                    alignment: Alignment.topCenter,
                     children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('or', style: TextStyle(color: Colors.grey)),
+                      // ── Banner Image ──────────────────────────────────────
+                      SizedBox(
+                        height: bannerHeight,
+                        width: double.infinity,
+                        child: Image.asset(
+                          'assets/images/cupping.jpg',
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
+                        ),
                       ),
-                      Expanded(child: Divider()),
+
+                      // ── Logo ──────────────────────────────────────────────
+                      Positioned(
+                        top: padding.top + 16,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: Image.asset(
+                            'assets/icon/cuplogoapp.png',
+                            height: 110,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+
+                      // ── Form Card ─────────────────────────────────────────
+                      Container(
+                        margin: EdgeInsets.only(
+                          top: bannerHeight - 200,
+                          left: 24,
+                          right: 24,
+                          bottom: 30,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 36,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(0),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0D000000),
+                              blurRadius: 30,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Login',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Please enter your email and password to log in.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // ── Email ────────────────────────────────────────
+                            const Text(
+                              'Email',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _usernameController,
+                              keyboardType: TextInputType.emailAddress,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your email',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 14,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 18,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(0),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(0),
+                                  borderSide: BorderSide(
+                                    color: secondaryColor2,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // ── Password ─────────────────────────────────────
+                            const Text(
+                              'Password',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _passwordController,
+                              obscureText: _isObscure,
+                              decoration: InputDecoration(
+                                hintText: 'Enter your password',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 14,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 18,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(0),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(0),
+                                  borderSide: BorderSide(
+                                    color: secondaryColor2,
+                                    width: 2,
+                                  ),
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _isObscure
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _isObscure = !_isObscure,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // ── Forgot Password ───────────────────────────────
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _sendPasswordReset,
+                                child: Text(
+                                  'Forgot Password ?',
+                                  style: TextStyle(
+                                    color: secondaryColor2,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // ── Login Button ──────────────────────────────────
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _handleLogin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: secondaryColor2,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(0),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // ── Register Button ───────────────────────────────
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RegisterPage(),
+                                    ),
+                                  );
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: secondaryColor2,
+                                    width: 1.5,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(0),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Register',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    color: secondaryColor2,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                  SizedBox(height: size.height * 0.035),
-
-                  _buildSocialButton('Continue with Google', 'assets/icons/google.png'),
-                  const SizedBox(height: 16),
-                  _buildSocialButton('Continue with LINE', 'assets/icons/LINE.png', iconSize: 24),
-                  const SizedBox(height: 16),
-                  _buildSocialButton('Continue with Facebook', 'assets/icons/facebook.png'),
-                  SizedBox(height: size.height * 0.05),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ),
+
+            // ── Loading Overlay ────────────────────────────────────────────
+            if (_isLoading)
+              Container(
+                color: Colors.black.withOpacity(0.4),
+                child: Center(
+                  child: CircularProgressIndicator(color: secondaryColor2),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildSocialButton(String text, String assetPath, {double iconSize = 18}) {
-    return OutlinedButton(
-      onPressed: () {},
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 55),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        side: BorderSide(color: Colors.grey.shade200),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(assetPath, width: iconSize, height: iconSize, fit: BoxFit.contain),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              text,
-              style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
-            ),
+  // ── Forgot Password ────────────────────────────────────────────────────────
+  Future<void> _sendPasswordReset() async {
+    final email = _usernameController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณากรอกอีเมลก่อนกด Forgot Password')),
+      );
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมลแล้ว'),
+            backgroundColor: Colors.green,
           ),
-        ],
-      ),
-    );
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'เกิดข้อผิดพลาด'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
