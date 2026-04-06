@@ -15,7 +15,8 @@ import 'package:provider/provider.dart';
 
 class CoffeeDetailScreen extends StatefulWidget {
   final bool isAvailable;
-  final SessionModel? session; // รับ SessionModel (optional เพื่อ backward compat)
+  final SessionModel?
+  session; // รับ SessionModel (optional เพื่อ backward compat)
 
   const CoffeeDetailScreen({
     super.key,
@@ -58,7 +59,11 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.black,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -134,32 +139,35 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                             color: widget.session?.isCompleted == true
                                 ? const Color(0xFFE8F5E9)
                                 : widget.isAvailable
-                                    ? const Color(0xFFE5F9EA)
-                                    : Colors.grey.shade100,
+                                ? const Color(0xFFE5F9EA)
+                                : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (widget.session?.isCompleted == true) ...[
-                                const Icon(Icons.check_circle,
-                                    size: 12, color: Color(0xFF2E7D32)),
+                                const Icon(
+                                  Icons.check_circle,
+                                  size: 12,
+                                  color: Color(0xFF2E7D32),
+                                ),
                                 const SizedBox(width: 4),
                               ],
                               Text(
                                 widget.session?.isCompleted == true
                                     ? "Completed"
                                     : widget.isAvailable
-                                        ? "Open for Evaluation"
-                                        : "Not yet available",
+                                    ? "Open for Evaluation"
+                                    : "Not yet available",
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                   color: widget.session?.isCompleted == true
                                       ? const Color(0xFF2E7D32)
                                       : widget.isAvailable
-                                          ? const Color(0xFF4CAF50)
-                                          : Colors.grey,
+                                      ? const Color(0xFF4CAF50)
+                                      : Colors.grey,
                                 ),
                               ),
                             ],
@@ -229,10 +237,8 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
 
                         if (session != null && session.samples.isNotEmpty)
                           ...session.samples.asMap().entries.map(
-                            (entry) => _buildSampleCard(
-                              entry.key + 1,
-                              entry.value,
-                            ),
+                            (entry) =>
+                                _buildSampleCard(entry.key + 1, entry.value),
                           )
                         else ...[
                           _buildBulletPoint("xxxxxxxxxxxxxxxxxxxx"),
@@ -376,8 +382,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
             spacing: 12,
             runSpacing: 6,
             children: [
-              if (sample.type.isNotEmpty)
-                _buildDetailChip("Type", sample.type),
+              if (sample.type.isNotEmpty) _buildDetailChip("Type", sample.type),
               if (sample.species.isNotEmpty)
                 _buildDetailChip("Species", sample.species),
               if (sample.country.isNotEmpty)
@@ -526,17 +531,26 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
           if (cp == null) return;
 
           if (cp is AffectiveProvider) {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => AffectiveChartScreen(provider: cp),
-            ));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AffectiveChartScreen(provider: cp),
+              ),
+            );
           } else if (cp is DescriptiveProvider) {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _DescriptiveResultView(provider: cp),
-            ));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _DescriptiveResultView(provider: cp),
+              ),
+            );
           } else if (cp is CombinedProvider) {
-            Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _CombinedResultView(provider: cp),
-            ));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _CombinedResultView(provider: cp),
+              ),
+            );
           }
         },
         style: ElevatedButton.styleFrom(
@@ -609,12 +623,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                     height: 54,
                     fit: BoxFit.cover,
                   )
-                : Image.asset(
-                    asset,
-                    width: 54,
-                    height: 54,
-                    fit: BoxFit.cover,
-                  ),
+                : Image.asset(asset, width: 54, height: 54, fit: BoxFit.cover),
           ),
         ),
       ),
@@ -650,13 +659,19 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
                       "Share Cupping Event",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close),
@@ -681,7 +696,10 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> {
               ),
               const Spacer(),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 30,
+                ),
                 child: SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
@@ -730,7 +748,7 @@ class _DescriptiveResultView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: provider,
-      child: DescriptiveStep1(session: provider.session),
+      child: DescriptiveChartResult(provider: provider),
     );
   }
 }
@@ -744,7 +762,7 @@ class _CombinedResultView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: provider,
-      child: CombinedAssessmentScreen(session: provider.session),
+      child: CombinedChartResult(provider: provider), // ← ใช้ chart โดยตรง
     );
   }
 }

@@ -39,22 +39,22 @@ class ProfilePage extends StatelessWidget {
 
   Widget _buildMenuSection(BuildContext context) {
     final menuItems = [
-      _MenuItem(
-        icon: Icons.coffee_outlined,
-        title: "Recent Cuppings",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const RecentCuppingsPage()),
-        ),
-      ),
-      _MenuItem(
-        icon: Icons.shopping_bag_outlined,
-        title: "My Orders",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const OrderStatusPage()),
-        ),
-      ),
+      // _MenuItem(
+      //   icon: Icons.coffee_outlined,
+      //   title: "Recent Cuppings",
+      //   onTap: () => Navigator.push(
+      //     context,
+      //     MaterialPageRoute(builder: (_) => const RecentCuppingsPage()),
+      //   ),
+      // ),
+      // _MenuItem(
+      //   icon: Icons.shopping_bag_outlined,
+      //   title: "My Orders",
+      //   onTap: () => Navigator.push(
+      //     context,
+      //     MaterialPageRoute(builder: (_) => const OrderStatusPage()),
+      //   ),
+      // ),
       _MenuItem(
         icon: Icons.menu_book_outlined,
         title: "User Guide",
@@ -71,14 +71,14 @@ class ProfilePage extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const FaqsPage()),
         ),
       ),
-      _MenuItem(
-        icon: Icons.info_outline_rounded,
-        title: "About Us",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AboutUsPage()),
-        ),
-      ),
+      // _MenuItem(
+      //   icon: Icons.info_outline_rounded,
+      //   title: "About Us",
+      //   onTap: () => Navigator.push(
+      //     context,
+      //     MaterialPageRoute(builder: (_) => const AboutUsPage()),
+      //   ),
+      // ),
       _MenuItem(
         icon: Icons.description_outlined,
         title: "Terms of Service",

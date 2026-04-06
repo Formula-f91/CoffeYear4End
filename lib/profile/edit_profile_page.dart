@@ -17,12 +17,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   File? _selectedImage;
   bool _isLoading = false;
 
+  // ── เก็บ network image ครั้งเดียว กัน rebuild สร้าง NetworkImage ใหม่ ─────
+  ImageProvider? _cachedNetworkImage;
+
   User? get _currentUser => FirebaseAuth.instance.currentUser;
 
   @override
   void initState() {
     super.initState();
     _usernameController.text = _currentUser?.displayName ?? '';
+    // โหลด URL ครั้งเดียวตอน init ไม่ต่อ timestamp
+    final photoURL = _currentUser?.photoURL;
+    if (photoURL != null) {
+      _cachedNetworkImage = NetworkImage(photoURL);
+    }
   }
 
   @override
@@ -128,7 +136,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 const SizedBox(height: 20),
 
-                // New Password
                 const Text(
                   'New Password',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
@@ -170,7 +177,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Confirm Password
                 const Text(
                   'Confirm Password',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
@@ -319,18 +325,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // ── ใช้ _cachedNetworkImage แทนการสร้าง NetworkImage ใหม่ทุก build ────
     ImageProvider avatarImage;
     if (_selectedImage != null) {
       avatarImage = FileImage(_selectedImage!);
-    } else if (_currentUser?.photoURL != null) {
-      avatarImage = NetworkImage(
-        '${_currentUser!.photoURL!}?t=${DateTime.now().millisecondsSinceEpoch}',
-      );
+    } else if (_cachedNetworkImage != null) {
+      avatarImage = _cachedNetworkImage!;
     } else {
       avatarImage = const AssetImage('assets/photo/coffepro.png');
     }
-
-    final padding = MediaQuery.of(context).padding;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F0EB),
@@ -342,7 +345,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               physics: const ClampingScrollPhysics(),
               child: Column(
                 children: [
-                  // ── Banner + Avatar ────────────────────────────────────────
+                  // ── Banner + Avatar ──────────────────────────────────────
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -395,6 +398,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                       ),
 
+                      // Avatar ลอยทับ banner
                       Positioned(
                         bottom: -55,
                         left: 0,
@@ -464,7 +468,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
                   const SizedBox(height: 32),
 
-                  // ── Form Card ──────────────────────────────────────────────
+                  // ── Form Card ────────────────────────────────────────────
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 24),
                     padding: const EdgeInsets.all(24),
@@ -482,7 +486,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Username ──────────────────────────────────────────
+                        // Username
                         const Text(
                           'Username',
                           style: TextStyle(fontWeight: FontWeight.w600),
@@ -517,7 +521,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                         const SizedBox(height: 20),
 
-                        // ── Email (read-only) ─────────────────────────────────
+                        // Email (read-only)
                         const Text(
                           'Email',
                           style: TextStyle(fontWeight: FontWeight.w600),
@@ -556,7 +560,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                         const SizedBox(height: 20),
 
-                        // ── Password ──────────────────────────────────────────
+                        // Password
                         const Text(
                           'Password',
                           style: TextStyle(fontWeight: FontWeight.w600),
@@ -599,7 +603,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ),
                         const SizedBox(height: 32),
 
-                        // ── Update Button ─────────────────────────────────────
+                        // Update Button
                         SizedBox(
                           width: double.infinity,
                           height: 55,
@@ -630,7 +634,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             ),
 
-            // ── Loading Overlay ────────────────────────────────────────────
+            // Loading Overlay
             if (_isLoading)
               Container(
                 color: Colors.black.withOpacity(0.4),

@@ -221,25 +221,25 @@ class CoffeeEventScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-          ),
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: const BoxDecoration(color: Colors.white),
-            child: Center(
-              child: Image.asset(
-                'assets/qrcode.png',
-                width: 28,
-                height: 28,
-                color: Colors.black,
-              ),
-            ),
-          ),
-        ),
+        // GestureDetector(
+        //   onTap: () => Navigator.push(
+        //     context,
+        //     MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+        //   ),
+        //   child: Container(
+        //     width: 50,
+        //     height: 50,
+        //     decoration: const BoxDecoration(color: Colors.white),
+        //     child: Center(
+        //       child: Image.asset(
+        //         'assets/qrcode.png',
+        //         width: 28,
+        //         height: 28,
+        //         color: Colors.black,
+        //       ),
+        //     ),
+        //   ),
+        // ),
       ],
     );
   }

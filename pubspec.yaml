@@ -50,7 +50,7 @@ dependencies:
 flutter_launcher_icons:             # ← เพิ่มตรงนี้ (ไม่มี indent)
   android: true
   ios: true
-  image_path: "assets/icon/cuplogoapp.png"
+  image_path: "assets/icon/cuptastelogo.jpg"
 
   
 dev_dependencies:
